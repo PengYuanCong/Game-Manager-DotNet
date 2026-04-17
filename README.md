@@ -1,4 +1,4 @@
-# ⚔️ WuWa-Manager-DotNet
+# ⚔️ Game-Manager-DotNet
 
 一個專為 遊戲 玩家設計的綜合管理系統，基於 ASP.NET Core MVC 開發。
 
