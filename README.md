@@ -20,6 +20,9 @@
 3. 透過 `dotnet user-secrets` 設定您的 YouTube API Key。
 4. 執行 `Update-Database` 完成資料庫遷移。
 
-
-
+<img width="1915" height="956" alt="image" src="https://github.com/user-attachments/assets/f3faf4e9-d3a9-4d52-a1d8-bf1caa126357" />
+<img width="1781" height="960" alt="image" src="https://github.com/user-attachments/assets/542ac653-b1b3-40d3-9f6b-fc8c4b885094" />
+<img width="1905" height="961" alt="image" src="https://github.com/user-attachments/assets/fbab1fe1-cd2e-4cf0-a55f-8931ca230e75" />
+<img width="1807" height="957" alt="image" src="https://github.com/user-attachments/assets/4fcd91c3-d508-46b6-a86a-1a698e00cf23" />
+<img width="1897" height="955" alt="image" src="https://github.com/user-attachments/assets/f4607783-40e0-4d70-b67e-279373875d5b" />
 <img width="1903" height="922" alt="image" src="https://github.com/user-attachments/assets/d846f8ac-657c-46f1-9822-0b84d4f6d0bc" />
