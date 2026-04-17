@@ -19,3 +19,7 @@
 2. 於 `appsettings.json` 設定您的 SQL Server 連線字串。
 3. 透過 `dotnet user-secrets` 設定您的 YouTube API Key。
 4. 執行 `Update-Database` 完成資料庫遷移。
+
+
+
+<img width="1903" height="922" alt="image" src="https://github.com/user-attachments/assets/d846f8ac-657c-46f1-9822-0b84d4f6d0bc" />
