@@ -197,10 +197,10 @@ $RECYCLE.BIN/
 *.lnk
 
 
-# 排除開發環境的機密設定 (避免 API Key 或資料庫連線字串外洩)
+# 排除所有 appsettings 的開發設定
 appsettings.Development.json
-
-# 排除 UserSecrets 的 ID 紀錄 (防止本地開發環境 ID 衝擊)
+appsettings.json
+# 排除使用者機密
 UserSecretsId
 
 # 排除 Visual Studio 產生的個人設定
