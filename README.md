@@ -7,6 +7,7 @@
 - **組合計算機**：自定義「裝備組合 (Loadouts)」，系統自動執行資料庫層級的屬性加總，一鍵計算 EHP 與 CP 值。
 - **影音整合中心**：串接 **YouTube Data API v3**，支援關鍵字搜尋、影片預覽及本地影片拖曳上傳播放。
 - **資安實踐**：使用 **Secret Manager** 管理 API 金鑰，確保開發環境安全性。
+- Feature: 整合 Chart.js 雷達圖與視覺化佈局優化
 
 ## 🛠️ 技術棧
 - **Framework**: ASP.NET Core 8.0 MVC
@@ -24,7 +25,8 @@
 
 <img width="1781" height="960" alt="image" src="https://github.com/user-attachments/assets/542ac653-b1b3-40d3-9f6b-fc8c4b885094" />
 
-<img width="1905" height="961" alt="image" src="https://github.com/user-attachments/assets/fbab1fe1-cd2e-4cf0-a55f-8931ca230e75" />
+<img width="1868" height="1076" alt="image" src="https://github.com/user-attachments/assets/8266dd78-f76d-414a-baca-6882b7fe4327" />
+
 
 <img width="1807" height="957" alt="image" src="https://github.com/user-attachments/assets/4fcd91c3-d508-46b6-a86a-1a698e00cf23" />
 
