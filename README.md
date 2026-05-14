@@ -1,5 +1,11 @@
 # ⚔️ Game-Manager-DotNet
 
+BIG NEWS
+目前正在開發串接AI API，並透過RAG回應出每位英雄最合適的裝備，海克斯搭配。
+
+<img width="1902" height="962" alt="image" src="https://github.com/user-attachments/assets/3aac2f84-a80d-4a24-ae27-98fde869521f" />
+
+
 一個專為 遊戲 玩家設計的綜合管理系統，基於 ASP.NET Core MVC 開發。
 
 ## 🌟 核心功能
