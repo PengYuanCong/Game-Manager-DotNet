@@ -1,0 +1,103 @@
+@model Proposal.Models.LolAramGuide
+
+<input asp-for="Id" type="hidden" />
+<div asp-validation-summary="ModelOnly" class="alert alert-danger border-0 text-bg-danger"></div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <label asp-for="ChampionKey" class="form-label text-info fw-bold"></label>
+        <input asp-for="ChampionKey" class="form-control text-bg-dark border-secondary" placeholder="例如：brand" />
+        <div class="form-text">用小寫英文，AI 查詢會用這個 key 對應英雄。</div>
+        <span asp-validation-for="ChampionKey" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-4">
+        <label asp-for="ChampionName" class="form-label text-info fw-bold"></label>
+        <input asp-for="ChampionName" class="form-control text-bg-dark border-secondary" placeholder="例如：Brand" />
+        <span asp-validation-for="ChampionName" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-4">
+        <label asp-for="LocalizedName" class="form-label"></label>
+        <input asp-for="LocalizedName" class="form-control text-bg-dark border-secondary" placeholder="例如：布蘭德" />
+        <span asp-validation-for="LocalizedName" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="ModeName" class="form-label text-info fw-bold"></label>
+        <input asp-for="ModeName" class="form-control text-bg-dark border-secondary" />
+        <span asp-validation-for="ModeName" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="PatchVersion" class="form-label text-info fw-bold"></label>
+        <input asp-for="PatchVersion" class="form-control text-bg-dark border-secondary" placeholder="例如：16.09 reference" />
+        <span asp-validation-for="PatchVersion" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12">
+        <label asp-for="RoleSummary" class="form-label text-info fw-bold"></label>
+        <textarea asp-for="RoleSummary" class="form-control text-bg-dark border-secondary" rows="2" placeholder="用一到兩句話描述英雄定位。"></textarea>
+        <span asp-validation-for="RoleSummary" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="CoreItems" class="form-label text-info fw-bold"></label>
+        <textarea asp-for="CoreItems" class="form-control text-bg-dark border-secondary" rows="3" placeholder="例如：Blackfire Torch; Liandry's Torment; Rylai's Crystal Scepter"></textarea>
+        <span asp-validation-for="CoreItems" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="SituationalItems" class="form-label"></label>
+        <textarea asp-for="SituationalItems" class="form-control text-bg-dark border-secondary" rows="3" placeholder="例如：Zhonya's Hourglass; Void Staff; Morellonomicon"></textarea>
+        <span asp-validation-for="SituationalItems" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="Augments" class="form-label"></label>
+        <textarea asp-for="Augments" class="form-control text-bg-dark border-secondary" rows="3"></textarea>
+        <span asp-validation-for="Augments" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-3">
+        <label asp-for="SummonerSpells" class="form-label"></label>
+        <textarea asp-for="SummonerSpells" class="form-control text-bg-dark border-secondary" rows="3"></textarea>
+        <span asp-validation-for="SummonerSpells" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-3">
+        <label asp-for="SkillOrder" class="form-label"></label>
+        <textarea asp-for="SkillOrder" class="form-control text-bg-dark border-secondary" rows="3"></textarea>
+        <span asp-validation-for="SkillOrder" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="PlaystyleTips" class="form-label"></label>
+        <textarea asp-for="PlaystyleTips" class="form-control text-bg-dark border-secondary" rows="4"></textarea>
+        <span asp-validation-for="PlaystyleTips" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="PositioningTips" class="form-label"></label>
+        <textarea asp-for="PositioningTips" class="form-control text-bg-dark border-secondary" rows="4"></textarea>
+        <span asp-validation-for="PositioningTips" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="Weaknesses" class="form-label"></label>
+        <textarea asp-for="Weaknesses" class="form-control text-bg-dark border-secondary" rows="4"></textarea>
+        <span asp-validation-for="Weaknesses" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="Notes" class="form-label"></label>
+        <textarea asp-for="Notes" class="form-control text-bg-dark border-secondary" rows="4" placeholder="寫你自己的判斷，例如刺客多、坦克多、隊伍缺輸出時的例外處理。"></textarea>
+        <span asp-validation-for="Notes" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12">
+        <label asp-for="SourceUrl" class="form-label"></label>
+        <input asp-for="SourceUrl" class="form-control text-bg-dark border-secondary" placeholder="https://op.gg/..." />
+        <span asp-validation-for="SourceUrl" class="text-danger small"></span>
+    </div>
+</div>

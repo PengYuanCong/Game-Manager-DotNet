@@ -1,129 +1,92 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
 using Proposal.Models;
-using System.Collections.Generic;
+using Proposal.Services;
 
 namespace Proposal.Controllers
 {
     [Authorize]
     public class CalculatorController : Controller
     {
-        private readonly IConfiguration _config;
-        public CalculatorController(IConfiguration config) { _config = config; }
+        private readonly IUserActivityLogService _activityLogService;
+        private readonly ICalculationHistoryRepository _calculationHistoryRepository;
+        private readonly ICalculatorDataRepository _calculatorDataRepository;
+
+        public CalculatorController(
+            IUserActivityLogService activityLogService,
+            ICalculationHistoryRepository calculationHistoryRepository,
+            ICalculatorDataRepository calculatorDataRepository)
+        {
+            _activityLogService = activityLogService;
+            _calculationHistoryRepository = calculationHistoryRepository;
+            _calculatorDataRepository = calculatorDataRepository;
+        }
 
         [HttpGet]
-        public IActionResult Index()
+        public async Task<IActionResult> Index(CancellationToken cancellationToken)
         {
-            List<Equipment> myEquipments = new List<Equipment>();
-            List<Loadout> myLoadouts = new List<Loadout>(); // 新增：用於存放組合清單
+            var username = CurrentUsername();
+            var myEquipments = await _calculatorDataRepository.GetEquipmentOptionsAsync(username, cancellationToken);
+            var myLoadouts = await _calculatorDataRepository.GetLoadoutOptionsAsync(username, cancellationToken);
 
-            string connString = _config.GetConnectionString("DefaultConnection");
-            using (SqlConnection cn = new SqlConnection(connString))
-            {
-                cn.Open();
-
-                // 1. 抓取單件裝備清單 (你原本的邏輯)
-                string sqlEq = "SELECT Id, Name FROM Equipments WHERE Username = @User";
-                using (SqlCommand cmd = new SqlCommand(sqlEq, cn))
-                {
-                    cmd.Parameters.AddWithValue("@User", User.Identity.Name);
-                    using (SqlDataReader dr = cmd.ExecuteReader())
-                    {
-                        while (dr.Read())
-                        {
-                            myEquipments.Add(new Equipment { Id = (int)dr["Id"], Name = dr["Name"].ToString() });
-                        }
-                    }
-                }
-
-                // 2. 新增：抓取「裝備組合」清單 (讓下拉選單可以選)
-                string sqlLo = "SELECT Id, LoadoutName FROM Loadouts WHERE Username = @User";
-                using (SqlCommand cmd = new SqlCommand(sqlLo, cn))
-                {
-                    cmd.Parameters.AddWithValue("@User", User.Identity.Name);
-                    using (SqlDataReader dr = cmd.ExecuteReader())
-                    {
-                        while (dr.Read())
-                        {
-                            myLoadouts.Add(new Loadout { Id = (int)dr["Id"], LoadoutName = dr["LoadoutName"].ToString() });
-                        }
-                    }
-                }
-            }
-
-            // 將資料傳給 View
-            ViewBag.EquipmentList = myEquipments;
-            ViewBag.LoadoutList = myLoadouts; // 傳送組合清單
+            ViewBag.EquipmentList = myEquipments.ToList();
+            ViewBag.LoadoutList = myLoadouts.ToList();
             return View();
         }
 
         // 3. 新增：API Action，讓前端點選組合後，能抓取「總合數值」
         [HttpGet]
-        public IActionResult GetLoadoutStats(int loadoutId)
+        public async Task<IActionResult> GetLoadoutStats(int loadoutId, CancellationToken cancellationToken)
         {
-            string connString = _config.GetConnectionString("DefaultConnection");
-            using (SqlConnection cn = new SqlConnection(connString))
-            {
-                cn.Open();
-                string sql = @"
-            SELECT 
-                SUM(e.HP) as TotalHP, 
-                SUM(e.Attack) as TotalAtk, 
-                SUM(e.MagicAttack) as TotalMAtk,
-                SUM(e.PhysicalDefense) as TotalPDef,
-                SUM(e.MagicDefense) as TotalMDef,
-                SUM(e.Price) as TotalPrice
-            FROM Loadouts l
-            CROSS APPLY (
-                SELECT HP, Attack, MagicAttack, PhysicalDefense, MagicDefense, Price 
-                FROM Equipments 
-                WHERE Id IN (l.Eq1_Id, l.Eq2_Id, l.Eq3_Id, l.Eq4_Id, l.Eq5_Id, l.Eq6_Id)
-            ) e
-            WHERE l.Id = @LId AND l.Username = @User";
+            var stats = await _calculatorDataRepository.GetLoadoutStatsAsync(
+                CurrentUsername(),
+                loadoutId,
+                cancellationToken);
 
-                using (SqlCommand cmd = new SqlCommand(sql, cn))
-                {
-                    cmd.Parameters.AddWithValue("@LId", loadoutId);
-                    cmd.Parameters.AddWithValue("@User", User.Identity.Name);
-                    using (SqlDataReader dr = cmd.ExecuteReader())
-                    {
-                        if (dr.Read())
-                        {
-                            return Json(new
-                            {
-                                hp = dr["TotalHP"] ?? 0,
-                                attack = dr["TotalAtk"] ?? 0,
-                                magicAttack = dr["TotalMAtk"] ?? 0,
-                                pDef = dr["TotalPDef"] ?? 0,
-                                mDef = dr["TotalMDef"] ?? 0,
-                                price = dr["TotalPrice"] ?? 0
-                            });
-                        }
-                    }
-                }
-            }
-            return NotFound();
+            return stats is null ? NotFound() : Json(stats);
         }
 
         // --- 你原本的 Calculate 和 SaveRecord 保持不變 ---
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Calculate(string formulaType, double param1, double param2, double param3)
         {
-            // ... (維持你原本的邏輯)
-            double result = 0;
-            string message = "";
-            switch (formulaType) { /* 你的公式邏輯 */ }
+            var message = "請使用頁面上的公式工具進行計算。";
             ViewBag.Result = message;
             ViewBag.FormulaType = formulaType;
             return View("Index");
         }
 
         [HttpPost]
-        public IActionResult SaveRecord(string type, string inputs, string result)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SaveRecord(
+            string type,
+            string inputs,
+            string result,
+            CancellationToken cancellationToken)
         {
-            // ... (維持你原本的邏輯)
+            var username = User.Identity?.Name ?? "anonymous";
+            await _calculationHistoryRepository.AddAsync(
+                username,
+                type ?? string.Empty,
+                inputs ?? string.Empty,
+                result ?? string.Empty,
+                cancellationToken);
+
+            await _activityLogService.AddAsync(
+                username,
+                "calculator",
+                $"使用公式：{type}",
+                result ?? string.Empty,
+                Url.Action("Index", "Calculator"),
+                cancellationToken);
+
             return Json(new { success = true });
+        }
+
+        private string CurrentUsername()
+        {
+            return User.Identity?.Name ?? "anonymous";
         }
     }
 }

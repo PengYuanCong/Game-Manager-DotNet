@@ -1,104 +1,131 @@
-﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Configuration; // 確保有這個
-using Microsoft.Data.SqlClient;
+using Microsoft.AspNetCore.Mvc;
 using Proposal.Models;
-using System.Collections.Generic;
-using System;
+using Proposal.Services;
 
-namespace Proposal.Controllers // 確認是你的專案名稱
+namespace Proposal.Controllers
 {
-    [Authorize] // 保護這個 Controller，沒登入進不來
+    [Authorize]
     public class UserController : Controller
     {
-        private readonly IConfiguration _config;
-        public UserController(IConfiguration config) { _config = config; }
+        private const long MaxAvatarBytes = 2 * 1024 * 1024;
+        private readonly IUserActivityLogService _activityLogService;
+        private readonly IAiRecommendationFavoriteService _favoriteService;
+        private readonly ICalculationHistoryRepository _calculationHistoryRepository;
 
-
-        // 👇 這是負責接收並儲存大頭貼的方法
-        [HttpPost]
-        public async Task<IActionResult> UploadAvatar(IFormFile avatarFile)
+        public UserController(
+            IUserActivityLogService activityLogService,
+            IAiRecommendationFavoriteService favoriteService,
+            ICalculationHistoryRepository calculationHistoryRepository)
         {
-            // 檢查使用者有沒有真的選取檔案
-            if (avatarFile != null && avatarFile.Length > 0)
+            _activityLogService = activityLogService;
+            _favoriteService = favoriteService;
+            _calculationHistoryRepository = calculationHistoryRepository;
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UploadAvatar(
+            IFormFile avatarFile,
+            CancellationToken cancellationToken)
+        {
+            var username = User.Identity?.Name ?? "anonymous";
+
+            if (avatarFile == null || avatarFile.Length <= 0)
             {
-                // 設定圖片要存檔的資料夾：專案目錄下的 wwwroot/avatars
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "avatars");
-
-                // 如果資料夾不存在，系統會自動建立一個
-                if (!Directory.Exists(uploadsFolder))
-                {
-                    Directory.CreateDirectory(uploadsFolder);
-                }
-
-                // 將圖片強制命名為「使用者帳號.jpg」(例如：Peng.jpg)
-                // 這樣每次上傳新照片就會自動覆蓋舊照片，不用改資料庫！
-                var fileName = User.Identity.Name + ".jpg";
-                var filePath = Path.Combine(uploadsFolder, fileName);
-
-                // 將上傳的檔案存入伺服器
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await avatarFile.CopyToAsync(stream);
-                }
+                TempData["Error"] = "請選擇要上傳的頭像圖片。";
+                return RedirectToAction("Profile");
             }
 
-            // 存檔完成後，重新載入會員頁面
+            if (avatarFile.Length > MaxAvatarBytes)
+            {
+                TempData["Error"] = "頭像圖片不可超過 2 MB。";
+                return RedirectToAction("Profile");
+            }
+
+            if (!await IsJpegAsync(avatarFile, cancellationToken))
+            {
+                TempData["Error"] = "頭像目前只允許上傳 JPEG 圖片。";
+                return RedirectToAction("Profile");
+            }
+
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "avatars");
+            Directory.CreateDirectory(uploadsFolder);
+
+            var filePath = Path.Combine(uploadsFolder, BuildSafeAvatarFileName(username));
+            await using (var source = avatarFile.OpenReadStream())
+            await using (var destination = new FileStream(filePath, FileMode.Create))
+            {
+                await source.CopyToAsync(destination, cancellationToken);
+            }
+
+            await _activityLogService.AddAsync(
+                username,
+                "profile",
+                "更新個人頭像",
+                "上傳了一張新的個人資料圖片。",
+                Url.Action("Profile", "User"),
+                cancellationToken);
+
             return RedirectToAction("Profile");
         }
 
-
-
-        public IActionResult Profile()
+        public async Task<IActionResult> Profile(CancellationToken cancellationToken)
         {
-            List<CalculationHistory> historyList = new List<CalculationHistory>();
+            var username = User.Identity?.Name ?? string.Empty;
+            var viewModel = new UserProfileViewModel
+            {
+                Username = username
+            };
 
-            ViewBag.Username = User.Identity?.Name;
-
-
-            // 現在它終於能拿到跟 Calculator 一模一樣的連線字串了
-            string connString = _config.GetConnectionString("DefaultConnection");
             try
             {
-                using (SqlConnection cn = new SqlConnection(connString))
-                {
-                    cn.Open();
-                    // 成功連線雷達
-                    ViewBag.DbInfo = $"🟢 連線成功！伺服器：{cn.DataSource}";
-
-                    // 💡 無敵防呆 SQL：不管大小寫、不管前後空白，通通比對！
-                    string sql = @"SELECT * FROM CalculationHistory 
-                                   WHERE LOWER(LTRIM(RTRIM(Username))) = LOWER(LTRIM(RTRIM(@User))) 
-                                   ORDER BY CreatedAt DESC";
-
-                    using (SqlCommand cmd = new SqlCommand(sql, cn))
-                    {
-                        cmd.Parameters.AddWithValue("@User", User.Identity.Name ?? "");
-
-                        using (SqlDataReader dr = cmd.ExecuteReader())
-                        {
-                            while (dr.Read())
-                            {
-                                historyList.Add(new CalculationHistory
-                                {
-                                    FormulaType = dr["FormulaType"]?.ToString() ?? "未知公式",
-                                    InputDetails = dr["InputDetails"]?.ToString() ?? "無數據",
-                                    ResultContent = dr["ResultContent"]?.ToString() ?? "無結果",
-                                    CreatedAt = dr["CreatedAt"] != DBNull.Value ? Convert.ToDateTime(dr["CreatedAt"]) : DateTime.Now
-                                });
-                            }
-                        }
-                    }
-                }
+                viewModel.RecentCalculations = await _calculationHistoryRepository.GetRecentAsync(
+                    username,
+                    5,
+                    cancellationToken);
+                viewModel.RecentActivities = await _activityLogService.GetRecentAsync(
+                    username,
+                    5,
+                    cancellationToken);
+                viewModel.RecommendationFavorites = await _favoriteService.GetRecentAsync(
+                    username,
+                    6,
+                    cancellationToken);
+                viewModel.DbInfo = "資料服務正常";
             }
             catch (Exception ex)
             {
-                // 🔴 如果有任何連線或讀取錯誤，直接顯示在網頁上給你看
-                ViewBag.DbInfo = $"🔴 發生錯誤：{ex.Message}";
+                viewModel.DbInfo = $"資料服務暫時異常：{ex.Message}";
             }
 
-            return View(historyList);
+            return View(viewModel);
+        }
+
+        private static string BuildSafeAvatarFileName(string username)
+        {
+            var safeName = new string(username
+                .Where(character => char.IsAsciiLetterOrDigit(character) || character is '_' or '-' or '.')
+                .ToArray());
+
+            return $"{(string.IsNullOrWhiteSpace(safeName) ? "anonymous" : safeName)}.jpg";
+        }
+
+        private static async Task<bool> IsJpegAsync(IFormFile file, CancellationToken cancellationToken)
+        {
+            if (!string.Equals(file.ContentType, "image/jpeg", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            await using var stream = file.OpenReadStream();
+            var header = new byte[3];
+            var read = await stream.ReadAsync(header, cancellationToken);
+
+            return read == header.Length
+                && header[0] == 0xFF
+                && header[1] == 0xD8
+                && header[2] == 0xFF;
         }
     }
-
 }

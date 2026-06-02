@@ -1,179 +1,540 @@
-﻿@model IEnumerable<Proposal.Models.VideoItem>
+@model IEnumerable<Proposal.Models.VideoItem>
 
+@{
+    ViewData["Title"] = "精彩操作";
+}
+
+<section class="highlight-theater">
+    <div class="highlight-hero">
+        <div>
+            <div class="highlight-kicker">HIGHLIGHT THEATER</div>
+            <h1>精彩操作劇院</h1>
+            <p>搜尋 League of Legends 影片、預覽教學與操作精華，也可以拖曳本地影片快速播放。</p>
+        </div>
+        <div class="highlight-badges" aria-label="功能摘要">
+            <span><i class="bi bi-youtube"></i>YouTube 搜尋</span>
+            <span><i class="bi bi-film"></i>本地播放</span>
+            <span><i class="bi bi-controller"></i>操作複盤</span>
+        </div>
+    </div>
+
+    <div class="theater-grid">
+        <aside class="video-sidebar">
+            <div class="sidebar-head">
+                <div>
+                    <div class="highlight-kicker">Search Queue</div>
+                    <h2>搜尋清單</h2>
+                </div>
+                <i class="bi bi-play-btn"></i>
+            </div>
+
+            <div class="search-dock">
+                <label class="form-label" for="ytSearchInput">關鍵字</label>
+                <div class="input-group">
+                    <input type="text" id="ytSearchInput" class="form-control rift-input" placeholder="例如：ARAM Mayhem Swain">
+                    <button class="btn rift-primary" type="button" onclick="handleSearch()">
+                        <i class="bi bi-search me-1"></i>搜尋
+                    </button>
+                </div>
+            </div>
+
+            <div id="videoList" class="video-list">
+                <div class="queue-empty">
+                    <i class="bi bi-search-heart"></i>
+                    <strong>等待搜尋</strong>
+                    <span>搜尋後的影片會出現在這裡。</span>
+                </div>
+            </div>
+        </aside>
+
+        <main class="player-stage">
+            <div class="stage-topline">
+                <span><i class="bi bi-broadcast-pin"></i> Preview Console</span>
+                <span>16:9</span>
+            </div>
+
+            <div class="video-viewport" id="playerContainer">
+                <div class="player-empty">
+                    <i class="bi bi-play-circle"></i>
+                    <strong>選擇影片開始預覽</strong>
+                    <span>從左側搜尋結果或本地拖曳影片開始。</span>
+                </div>
+            </div>
+
+            <div id="dropZone" class="drop-zone">
+                <input id="fileInput" type="file" accept="video/*" class="d-none">
+                <div>
+                    <i class="bi bi-cloud-arrow-up"></i>
+                    <strong>拖曳本地影片到這裡</strong>
+                    <span>支援瀏覽器可播放的影片格式。</span>
+                </div>
+                <button type="button" class="btn rift-outline" onclick="document.getElementById('fileInput').click()">
+                    <i class="bi bi-folder2-open me-1"></i>選擇檔案
+                </button>
+            </div>
+        </main>
+    </div>
+</section>
+
+@section Styles {
 <style>
-    .media-container {
+    .highlight-theater {
+        padding-bottom: 46px;
+    }
+
+    .highlight-hero,
+    .video-sidebar,
+    .player-stage {
+        border: 1px solid rgba(34, 232, 255, 0.24);
+        background:
+            linear-gradient(135deg, rgba(3, 16, 24, 0.96), rgba(5, 32, 43, 0.9)),
+            repeating-linear-gradient(90deg, rgba(34, 232, 255, 0.045) 0 1px, transparent 1px 58px);
+        box-shadow: 0 22px 70px rgba(0, 0, 0, 0.32);
+    }
+
+    .highlight-hero {
         display: flex;
-        height: 80vh;
-        gap: 20px;
-        margin-top: 20px;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: end;
+        min-height: 220px;
+        padding: clamp(26px, 5vw, 48px);
+        margin-bottom: 22px;
+        border-color: rgba(216, 182, 92, 0.28);
+        background:
+            linear-gradient(110deg, rgba(3, 11, 16, 0.96) 0%, rgba(6, 31, 42, 0.88) 58%, rgba(255, 0, 0, 0.09) 100%),
+            radial-gradient(circle at 84% 20%, rgba(216, 182, 92, 0.16), transparent 22rem),
+            repeating-linear-gradient(90deg, rgba(34, 232, 255, 0.045) 0 1px, transparent 1px 58px);
     }
-    /* 左側搜尋清單 */
-    .video-sidebar {
-        flex: 1;
-        background: rgba(33, 37, 41, 0.9);
-        border-radius: 15px;
-        padding: 15px;
+
+    .highlight-kicker {
+        color: #22e8ff;
+        font-size: 0.78rem;
+        font-weight: 900;
+        text-transform: uppercase;
+    }
+
+    .highlight-hero h1 {
+        margin: 8px 0 12px;
+        color: #fff4c7;
+        font-size: clamp(2.6rem, 6vw, 5.6rem);
+        font-weight: 950;
+        line-height: 0.95;
+    }
+
+    .highlight-hero p {
+        max-width: 640px;
+        margin: 0;
+        color: #c8e8ef;
+        line-height: 1.85;
+    }
+
+    .highlight-badges {
+        display: grid;
+        gap: 10px;
+        min-width: min(100%, 260px);
+    }
+
+    .highlight-badges span {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 46px;
+        padding: 10px 12px;
+        border: 1px solid rgba(34, 232, 255, 0.32);
+        color: #f5fbff;
+        background: rgba(0, 0, 0, 0.25);
+        font-weight: 900;
+    }
+
+    .highlight-badges i {
+        color: #d8b65c;
+        font-size: 1.1rem;
+    }
+
+    .theater-grid {
+        display: grid;
+        grid-template-columns: minmax(310px, 390px) minmax(0, 1fr);
+        gap: 22px;
+        min-height: 640px;
+    }
+
+    .video-sidebar,
+    .player-stage {
+        padding: 22px;
+    }
+
+    .sidebar-head,
+    .stage-topline {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+    }
+
+    .sidebar-head {
+        margin-bottom: 20px;
+    }
+
+    .sidebar-head h2 {
+        margin: 5px 0 0;
+        color: #fff4c7;
+        font-size: 1.45rem;
+        font-weight: 950;
+    }
+
+    .sidebar-head > i {
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        color: #22e8ff;
+        border: 1px solid rgba(34, 232, 255, 0.42);
+        background: rgba(34, 232, 255, 0.08);
+        font-size: 1.35rem;
+    }
+
+    .form-label {
+        color: #22e8ff;
+        font-size: 0.86rem;
+        font-weight: 900;
+    }
+
+    .rift-input {
+        min-height: 46px;
+        border-radius: 0;
+        border: 1px solid rgba(164, 190, 198, 0.45);
+        color: #fff;
+        background: rgba(255, 255, 255, 0.075);
+    }
+
+    .rift-input:focus {
+        color: #fff;
+        border-color: #22e8ff;
+        background: rgba(34, 232, 255, 0.08);
+        box-shadow: 0 0 0 0.18rem rgba(34, 232, 255, 0.16);
+    }
+
+    .rift-primary,
+    .rift-outline {
+        min-height: 46px;
+        border-radius: 0;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .rift-primary {
+        border: 1px solid rgba(34, 232, 255, 0.85);
+        color: #031017;
+        background: linear-gradient(135deg, #18d5f0, #9ee996);
+    }
+
+    .rift-outline {
+        border: 1px solid rgba(34, 232, 255, 0.62);
+        color: #22e8ff;
+        background: rgba(34, 232, 255, 0.06);
+    }
+
+    .video-list {
+        display: grid;
+        gap: 12px;
+        max-height: 470px;
+        margin-top: 18px;
         overflow-y: auto;
+        padding-right: 4px;
     }
+
     .video-item {
         cursor: pointer;
         padding: 10px;
-        margin-bottom: 10px;
-        border-bottom: 1px solid #444;
-        transition: 0.3s;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.22);
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
     }
-    .video-item:hover { background: rgba(0, 123, 255, 0.2); }
 
-    /* 右側播放與上傳區 */
-    .main-player-area {
-        flex: 3;
+    .video-item:hover {
+        transform: translateY(-3px);
+        border-color: rgba(34, 232, 255, 0.58);
+        background: rgba(34, 232, 255, 0.08);
+    }
+
+    .video-thumb {
+        width: 92px;
+        aspect-ratio: 16 / 9;
+        object-fit: cover;
+        border: 1px solid rgba(34, 232, 255, 0.25);
+        background: #000;
+    }
+
+    .video-title {
+        color: #f4fbff;
+        font-size: 0.9rem;
+        font-weight: 850;
+        line-height: 1.35;
+    }
+
+    .video-channel {
+        color: #92adba;
+        font-size: 0.78rem;
+    }
+
+    .queue-empty,
+    .player-empty {
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 8px;
+        min-height: 190px;
+        text-align: center;
+        color: #93b5bf;
+    }
+
+    .queue-empty i,
+    .player-empty i {
+        color: #22e8ff;
+        font-size: 2rem;
+    }
+
+    .player-stage {
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 18px;
     }
+
+    .stage-topline {
+        color: #9ab6c0;
+        font-size: 0.9rem;
+        font-weight: 900;
+    }
+
+    .stage-topline span:first-child {
+        color: #22e8ff;
+    }
+
     .video-viewport {
         width: 100%;
-        background: #000;
         aspect-ratio: 16 / 9;
-        border-radius: 15px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        display: grid;
+        place-items: center;
+        background:
+            radial-gradient(circle at center, rgba(34, 232, 255, 0.12), transparent 45%),
+            #000;
+        border: 1px solid rgba(34, 232, 255, 0.26);
+        box-shadow: inset 0 0 70px rgba(34, 232, 255, 0.08);
+        overflow: hidden;
     }
-    /* 拖曳上傳區 */
+
+    .video-viewport iframe,
+    .video-viewport video {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        object-fit: contain;
+        background: #000;
+    }
+
     .drop-zone {
-        border: 2px dashed #007bff;
-        border-radius: 15px;
-        padding: 30px;
-        text-align: center;
-        background: rgba(255, 255, 255, 0.05);
-        transition: 0.3s;
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        min-height: 118px;
+        padding: 18px;
+        border: 1px dashed rgba(34, 232, 255, 0.38);
+        color: #f5fbff;
+        background: rgba(34, 232, 255, 0.05);
+        transition: background 0.18s ease, border-color 0.18s ease;
     }
-    .drop-zone.active { background: rgba(0, 123, 255, 0.2); }
-</style>
 
-<div class="container-fluid">
-    <div class="media-container">
-    <div class="video-sidebar">
-        <h5 class="text-white mb-3">精彩操作搜尋</h5>
-        <div class="input-group mb-3">
-            <input type="text" id="ytSearchInput" class="form-control" placeholder="輸入關鍵字...">
-            <button class="btn btn-primary" onclick="handleSearch()">搜尋</button>
-        </div>
-        
-        <div id="videoList">
-            <p class="text-secondary small">搜尋後的影片會出現在這裡...</p>
-        </div>
-    </div>
+    .drop-zone.active {
+        border-color: #d8b65c;
+        background: rgba(216, 182, 92, 0.12);
+    }
 
-    <div class="main-player-area">
-        <div class="video-viewport" id="playerContainer">
-            <div class="text-center">
-                <i class="bi bi-play-btn fs-1 text-secondary"></i>
-                <p class="text-secondary">點擊左側影片進行預覽</p>
-            </div>
-        </div>
-        <div id="dropZone" class="drop-zone text-white">
-            <p>拖曳本地檔案至此播放</p>
-        </div>
-    </div>
-</div>
+    .drop-zone div {
+        display: grid;
+        gap: 4px;
+    }
 
-<script>
-    // 1. YouTube 搜尋邏輯 (正式環境：呼叫後端 API)
-    async function handleSearch() {
-        try {
-            const query = document.getElementById('ytSearchInput').value;
-            if (!query) return;
+    .drop-zone i {
+        color: #22e8ff;
+        font-size: 1.5rem;
+    }
 
-            const videoList = document.getElementById('videoList');
-            videoList.innerHTML = '<div class="text-white">搜尋中...</div>';
+    .drop-zone strong {
+        color: #fff4c7;
+        font-weight: 950;
+    }
 
-            // 呼叫後端 MediaController 的 GetYouTubeVideos
-            const response = await fetch(`/Media/GetYouTubeVideos?query=${encodeURIComponent(query)}`);
-            
-            if (!response.ok) throw new Error('API 請求失敗');
+    .drop-zone span {
+        color: #93b5bf;
+        font-size: 0.9rem;
+    }
 
-            const data = await response.json();
-            videoList.innerHTML = ''; // 清空狀態文字
-            
-            // 解析 YouTube API 回傳的資料並生成左側清單
-            data.items.forEach(item => {
-                const videoId = item.id.videoId;
-                const title = item.snippet.title;
-                const thumb = item.snippet.thumbnails.default.url;
-                const channel = item.snippet.channelTitle;
+    @@media (max-width: 1100px) {
+        .highlight-hero {
+            align-items: start;
+            flex-direction: column;
+        }
 
-                const div = document.createElement('div');
-                div.className = 'video-item text-white';
-                div.innerHTML = `
-                    <div class="d-flex align-items-center">
-                        <img src="${thumb}" style="width:80px; margin-right:10px; border-radius:5px;">
-                        <div>
-                            <div style="font-size:0.85rem; line-height:1.2;">${title}</div>
-                            <small class="text-secondary">${channel}</small>
-                        </div>
-                    </div>
-                `;
-                // 點擊後右側播放
-                div.onclick = () => playVideo(videoId);
-                videoList.appendChild(div);
-            });
+        .theater-grid {
+            grid-template-columns: 1fr;
+        }
 
-        } catch (error) {
-            console.error('Fetch Error:', error);
-            document.getElementById('videoList').innerHTML = '<div class="text-danger">搜尋失敗，請檢查 API 設定</div>';
+        .video-list {
+            max-height: 340px;
         }
     }
 
-    // 2. 右側影片播放器邏輯
+    @@media (max-width: 640px) {
+        .drop-zone,
+        .input-group {
+            display: grid;
+        }
+
+        .input-group .form-control,
+        .input-group .btn {
+            width: 100%;
+        }
+    }
+</style>
+}
+
+<script>
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    async function handleSearch() {
+        try {
+            const query = document.getElementById("ytSearchInput").value.trim();
+            if (!query) {
+                return;
+            }
+
+            const videoList = document.getElementById("videoList");
+            videoList.innerHTML = `
+                <div class="queue-empty">
+                    <div class="spinner-border text-info" role="status"></div>
+                    <strong>搜尋中</strong>
+                    <span>正在向 YouTube API 取得影片。</span>
+                </div>`;
+
+            const response = await fetch(`/Media/GetYouTubeVideos?query=${encodeURIComponent(query)}`);
+
+            if (!response.ok) {
+                throw new Error("API 請求失敗");
+            }
+
+            const data = await response.json();
+            videoList.innerHTML = "";
+
+            if (!data.items || data.items.length === 0) {
+                videoList.innerHTML = `
+                    <div class="queue-empty">
+                        <i class="bi bi-emoji-neutral"></i>
+                        <strong>沒有找到影片</strong>
+                        <span>換個英雄名稱或關鍵字再試一次。</span>
+                    </div>`;
+                return;
+            }
+
+            data.items.forEach(item => {
+                const videoId = item.id?.videoId;
+                if (!videoId) {
+                    return;
+                }
+
+                const title = escapeHtml(item.snippet?.title);
+                const thumb = escapeHtml(item.snippet?.thumbnails?.default?.url);
+                const channel = escapeHtml(item.snippet?.channelTitle);
+
+                const div = document.createElement("div");
+                div.className = "video-item";
+                div.innerHTML = `
+                    <div class="d-flex align-items-center gap-3">
+                        <img src="${thumb}" alt="" class="video-thumb" loading="lazy" referrerpolicy="no-referrer">
+                        <div>
+                            <div class="video-title">${title}</div>
+                            <div class="video-channel">${channel}</div>
+                        </div>
+                    </div>`;
+                div.onclick = () => playVideo(videoId);
+                videoList.appendChild(div);
+            });
+        } catch (error) {
+            console.error("Fetch Error:", error);
+            document.getElementById("videoList").innerHTML = `
+                <div class="queue-empty text-danger">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>搜尋失敗</strong>
+                    <span>請檢查 YouTube API 設定或稍後再試。</span>
+                </div>`;
+        }
+    }
+
     function playVideo(videoId) {
-        const container = document.getElementById('playerContainer');
+        const container = document.getElementById("playerContainer");
         container.innerHTML = `
-            <iframe width="100%" height="100%" 
-                src="https://www.youtube.com/embed/${videoId}?autoplay=1" 
-                frameborder="0" allow="autoplay; encrypted-media" allowfullscreen>
+            <iframe
+                src="https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1"
+                title="YouTube video player"
+                allow="autoplay; encrypted-media"
+                allowfullscreen>
             </iframe>`;
     }
 
-    // 3. 拖曳上傳與本地播放邏輯
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById("dropZone");
+    const fileInput = document.getElementById("fileInput");
 
     if (dropZone) {
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('active');
+        dropZone.addEventListener("dragover", (event) => {
+            event.preventDefault();
+            dropZone.classList.add("active");
         });
 
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('active'));
+        dropZone.addEventListener("dragleave", () => dropZone.classList.remove("active"));
 
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('active');
-            const file = e.dataTransfer.files[0];
+        dropZone.addEventListener("drop", (event) => {
+            event.preventDefault();
+            dropZone.classList.remove("active");
+            const file = event.dataTransfer.files[0];
             handleVideoFile(file);
         });
     }
 
     if (fileInput) {
-        fileInput.addEventListener('change', (e) => {
-            handleVideoFile(e.target.files[0]);
+        fileInput.addEventListener("change", (event) => {
+            handleVideoFile(event.target.files[0]);
         });
     }
 
     function handleVideoFile(file) {
-        if (file && file.type.startsWith('video/')) {
+        if (file && file.type.startsWith("video/")) {
             const url = URL.createObjectURL(file);
-            const container = document.getElementById('playerContainer');
-            container.innerHTML = `<video width="100%" height="100%" controls autoplay><source src="${url}" type="${file.type}"></video>`;
-            
-            // 加入左側清單提醒
-            const videoList = document.getElementById('videoList');
-            const newItem = document.createElement('div');
-            newItem.className = 'video-item text-info';
-            newItem.innerText = `[本地匯入] ${file.name}`;
+            const container = document.getElementById("playerContainer");
+            container.innerHTML = `<video controls autoplay><source src="${url}" type="${escapeHtml(file.type)}"></video>`;
+
+            const videoList = document.getElementById("videoList");
+            const newItem = document.createElement("div");
+            newItem.className = "video-item";
+            newItem.textContent = `[本地匯入] ${file.name}`;
+            newItem.onclick = () => {
+                container.innerHTML = `<video controls autoplay><source src="${url}" type="${escapeHtml(file.type)}"></video>`;
+            };
             videoList.prepend(newItem);
         }
     }
+
+    document.getElementById("ytSearchInput")?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            handleSearch();
+        }
+    });
 </script>

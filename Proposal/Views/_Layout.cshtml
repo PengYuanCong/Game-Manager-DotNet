@@ -1,103 +1,278 @@
-﻿<!DOCTYPE html>
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    string ActiveNav(params string[] controllers) =>
+        controllers.Any(controller => string.Equals(controller, currentController, StringComparison.OrdinalIgnoreCase))
+            ? "active"
+            : string.Empty;
+
+    string AvatarFileName(string? username)
+    {
+        var safeName = new string((username ?? "anonymous")
+            .Where(character => char.IsAsciiLetterOrDigit(character) || character is '_' or '-' or '.')
+            .ToArray());
+
+        return $"{(string.IsNullOrWhiteSpace(safeName) ? "anonymous" : safeName)}.jpg";
+    }
+}
+
+<!DOCTYPE html>
 <html lang="zh-TW" data-bs-theme="dark">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Proposal</title>
+    <title>@ViewData["Title"] - 彭彭遊戲基地</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-    
-    <style>
-            body {
-                min-height: 100vh;
-                margin: 0;
-                display: flex;
-                background-color: #121212; /* 深色背景底色 */
-            }
-        
-            /* 側邊欄樣式 */
-            .sidebar {
-                width: 250px;
-                background-color: #1e1e1e;
-                border-right: 1px solid #333;
-                height: 100vh;
-                position: fixed;
-                top: 0;
-                left: 0;
-            }
-        
-                .sidebar .nav-link {
-                    color: #adb5bd;
-                    font-size: 1.1rem;
-                    margin-bottom: 5px;
-                    transition: all 0.3s ease;
-                }
-        
-                    .sidebar .nav-link:hover, .sidebar .nav-link.active {
-                        color: #fff;
-                        background-color: #2b2b2b;
-                        border-left: 4px solid #0d6efd;
-                        border-radius: 0;
-                    }
 
-            /* 主要內容區塊樣式 (避開左側邊欄) */
-            .main-content {
-                margin-left: 250px;
-                flex: 1;
-                padding: 30px;
-                width: calc(100% - 250px);
+    <style>
+        body {
+            min-height: 100vh;
+            margin: 0;
+            background:
+                linear-gradient(rgba(37, 215, 232, 0.022) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(37, 215, 232, 0.018) 1px, transparent 1px),
+                linear-gradient(135deg, rgba(37, 215, 232, 0.08), transparent 28%),
+                linear-gradient(315deg, rgba(212, 175, 55, 0.055), transparent 22%),
+                #070b0f;
+            background-size: 36px 36px, 36px 36px, auto, auto, auto;
+            color: #f8f9fa;
+            font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
+        }
+
+        .app-navbar {
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+            border-bottom: 1px solid rgba(37, 215, 232, 0.18);
+            background:
+                linear-gradient(90deg, rgba(5, 13, 20, 0.98), rgba(6, 18, 28, 0.95) 54%, rgba(9, 25, 35, 0.98)),
+                rgba(7, 11, 15, 0.94);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.22);
+        }
+
+        .app-navbar::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: -1px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(37, 215, 232, 0.72), rgba(212, 175, 55, 0.54), transparent);
+            pointer-events: none;
+        }
+
+        .navbar-brand {
+            display: inline-flex;
+            align-items: center;
+            min-height: 42px;
+            padding: 0.3rem 0.65rem 0.3rem 0.45rem;
+            border: 1px solid rgba(37, 215, 232, 0.16);
+            border-radius: 5px;
+            color: #fff;
+            background: rgba(37, 215, 232, 0.04);
+            font-weight: 800;
+            white-space: nowrap;
+            letter-spacing: 0;
+        }
+
+        .navbar-brand:hover {
+            color: #25d7e8;
+        }
+
+        .navbar-brand i {
+            filter: drop-shadow(0 0 10px rgba(37, 215, 232, 0.42));
+        }
+
+        .app-navbar .nav-link {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            color: #adb5bd;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            padding: 0.45rem 0.7rem;
+            font-size: 0.95rem;
+            font-weight: 700;
+            transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+        }
+
+        .app-navbar .nav-link i {
+            color: #8fb7c7;
+        }
+
+        .app-navbar .nav-link:hover,
+        .app-navbar .nav-link.active {
+            color: #fff;
+            background: linear-gradient(180deg, rgba(37, 215, 232, 0.14), rgba(37, 215, 232, 0.05));
+            border-color: rgba(37, 215, 232, 0.28);
+            box-shadow: inset 0 -1px 0 rgba(255, 213, 92, 0.24);
+            transform: translateY(-1px);
+        }
+
+        .app-navbar .nav-link.active::after {
+            content: "";
+            position: absolute;
+            left: 0.7rem;
+            right: 0.7rem;
+            bottom: 0.2rem;
+            height: 2px;
+            background: linear-gradient(90deg, #25d7e8, #d4af37);
+            border-radius: 999px;
+        }
+
+        .app-navbar .nav-link:hover i,
+        .app-navbar .nav-link.active i {
+            color: #25d7e8;
+        }
+
+        .main-content {
+            width: 100%;
+            padding: 28px;
+        }
+
+        .btn {
+            border-radius: 5px;
+            font-weight: 700;
+        }
+
+        .form-control,
+        .form-select,
+        .input-group-text {
+            border-radius: 5px;
+        }
+
+        .form-select option {
+            color: #f5fbff;
+            background-color: #061923;
+        }
+
+        .form-select option:checked,
+        .form-select option:hover {
+            color: #031017;
+            background-color: #8fc7ff;
+        }
+
+        .card,
+        .modal-content {
+            border-color: rgba(37, 215, 232, 0.22) !important;
+            background: rgba(4, 12, 19, 0.82) !important;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 18px 40px rgba(0, 0, 0, 0.22);
+        }
+
+        .user-chip {
+            max-width: 220px;
+            min-width: 0;
+        }
+
+        .user-chip strong {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .main-content > .guide-page,
+        .main-content > .augment-page,
+        .main-content > .equipment-page,
+        .main-content > .aram-ai-page,
+        .main-content > .home-flow-shell,
+        .main-content > .profile-page {
+            animation: pageReveal 90ms ease both;
+        }
+
+        @@keyframes pageReveal {
+            from {
+                opacity: 0.96;
+                transform: translateY(2px);
             }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @@media (max-width: 575px) {
+            .main-content {
+                padding: 18px 12px;
+            }
+        }
     </style>
+    @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
-    <nav class="sidebar d-flex flex-column p-3">
-        <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
-            <i class="bi bi-controller fs-3 me-2 text-primary"></i>
-            <span class="fs-4 fw-bold">Peng's System</span>
-        </a>
-        <hr>
-        <ul class="nav nav-pills flex-column mb-auto">
-            <li class="nav-item">
-                <a asp-controller="Equipment" asp-action="Index" class="nav-link">
-                    <i class="bi bi-shield-sword me-2"></i> 裝備管理
-                </a>
-            </li>
-            <li>
-                <a asp-controller="Calculator" asp-action="Index" class="nav-link">
-                    <i class="bi bi-calculator me-2"></i> 公式計算
-                </a>
-            </li>
-            <li>
-                <a asp-controller="Calendar" asp-action="Index" class="nav-link">
-                    <i class="bi bi-calendar-check me-2"></i> 行事曆
-                </a>
-            </li>
-            <li>
-                <a asp-controller="User" asp-action="Profile" class="nav-link">
-                    <i class="bi bi-person-circle me-2"></i> 會員紀錄
-                </a>
-            </li>
-        </ul>
-        <hr>
-        <div class="mt-auto">
-            @if (User.Identity != null && User.Identity.IsAuthenticated)
-            {
-                <div class="d-flex align-items-center justify-content-between text-white">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-person-circle fs-4 me-2 text-info"></i>
-                        <strong>Hi, @User.Identity.Name</strong>
-                    </div>
-                    <a asp-controller="Account" asp-action="Logout" class="btn btn-sm btn-outline-danger">
-                        登出
-                    </a>
+    <nav class="navbar navbar-expand-xl app-navbar">
+        <div class="container-fluid px-4">
+            <a asp-controller="Home" asp-action="Index" class="navbar-brand d-flex align-items-center gap-2">
+                <i class="bi bi-controller fs-3 text-info"></i>
+                <span>彭彭遊戲基地</span>
+            </a>
+
+            <button class="navbar-toggler border-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="切換導覽">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse gap-3" id="mainNav">
+                <ul class="navbar-nav me-auto mb-2 mb-xl-0 gap-xl-1">
+                    <li class="nav-item">
+                        <a asp-controller="AiRecommendation" asp-action="Index" class="nav-link @ActiveNav("AiRecommendation")">
+                            <i class="bi bi-stars"></i>AI 推薦
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a asp-controller="LolAramGuides" asp-action="Index" class="nav-link @ActiveNav("LolAramGuides")">
+                            <i class="bi bi-person-vcard"></i>英雄
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a asp-controller="LolAramAugments" asp-action="Index" class="nav-link @ActiveNav("LolAramAugments")">
+                            <i class="bi bi-gem"></i>海克斯知識庫
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a asp-controller="Equipment" asp-action="Index" class="nav-link @ActiveNav("Equipment")">
+                            <i class="bi bi-shield-sword"></i>裝備管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a asp-controller="Calculator" asp-action="Index" class="nav-link @ActiveNav("Calculator", "Colculator")">
+                            <i class="bi bi-calculator"></i>公式計算
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a asp-controller="Media" asp-action="Highlights" class="nav-link @ActiveNav("Media")">
+                            <i class="bi bi-play-btn"></i>精彩操作
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a asp-controller="User" asp-action="Profile" class="nav-link @ActiveNav("User")">
+                            <i class="bi bi-person-circle"></i>個人資料
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="d-flex align-items-center gap-2">
+                    @if (User.Identity != null && User.Identity.IsAuthenticated)
+                    {
+                        <div class="user-chip d-flex align-items-center gap-2 text-white">
+                            <img src="/avatars/@AvatarFileName(User.Identity.Name)" onerror="this.src='https://github.com/mdo.png'" alt="使用者頭像" width="32" height="32" class="rounded-circle" style="object-fit: cover;">
+                            <strong>@User.Identity.Name</strong>
+                        </div>
+                        <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="登出">
+                                <i class="bi bi-box-arrow-right"></i>
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <a asp-controller="Account" asp-action="Login" class="btn btn-info text-dark fw-bold">
+                            登入系統
+                        </a>
+                    }
                 </div>
-            }
-            else
-            {
-                <a asp-controller="Account" asp-action="Login" class="btn btn-info w-100 text-white fw-bold">
-                    返回登入頁
-                </a>
-            }
+            </div>
         </div>
     </nav>
 

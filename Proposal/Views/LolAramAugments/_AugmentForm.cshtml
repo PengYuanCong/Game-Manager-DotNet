@@ -1,0 +1,96 @@
+@model Proposal.Models.LolAramAugment
+
+<input asp-for="Id" type="hidden" />
+<div asp-validation-summary="ModelOnly" class="alert alert-danger border-0 text-bg-danger"></div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <label asp-for="AugmentKey" class="form-label text-info fw-bold"></label>
+        <input asp-for="AugmentKey" class="form-control text-bg-dark border-secondary" placeholder="例如：grandma_spicy_oil" />
+        <div class="form-text">用英文 key，之後規則會用它做關聯。</div>
+        <span asp-validation-for="AugmentKey" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-4">
+        <label asp-for="Name" class="form-label text-info fw-bold"></label>
+        <input asp-for="Name" class="form-control text-bg-dark border-secondary" placeholder="例如：阿嬤的辣油" />
+        <span asp-validation-for="Name" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-4">
+        <label asp-for="ModeName" class="form-label text-info fw-bold"></label>
+        <input asp-for="ModeName" class="form-control text-bg-dark border-secondary" />
+        <span asp-validation-for="ModeName" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-3">
+        <label asp-for="Rarity" class="form-label text-info fw-bold"></label>
+        <select asp-for="Rarity" class="form-select text-bg-dark border-secondary">
+            <option value="silver">白銀階</option>
+            <option value="gold">黃金階</option>
+            <option value="prismatic">稜彩階</option>
+        </select>
+        <span asp-validation-for="Rarity" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-3">
+        <label asp-for="Tier" class="form-label"></label>
+        <input asp-for="Tier" class="form-control text-bg-dark border-secondary" placeholder="例如：S" />
+        <span asp-validation-for="Tier" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-3">
+        <label asp-for="SeriesKey" class="form-label"></label>
+        <input asp-for="SeriesKey" class="form-control text-bg-dark border-secondary" list="augmentSeriesOptions" placeholder="例如：爆竹系列、堆疊暴龍系列" />
+        <datalist id="augmentSeriesOptions">
+            <option value="爆竹系列"></option>
+            <option value="堆疊暴龍系列"></option>
+            <option value="雪球系列"></option>
+            <option value="自爆系列"></option>
+            <option value="嗚咿嗚咿系列"></option>
+            <option value="大法師系列"></option>
+            <option value="自動化系列"></option>
+            <option value="土豪賭客系列"></option>
+            <option value="錢如雨下系列"></option>
+        </datalist>
+        <div class="form-text">沒有套裝系列就留空。</div>
+        <span asp-validation-for="SeriesKey" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-3">
+        <label asp-for="PatchVersion" class="form-label text-info fw-bold"></label>
+        <input asp-for="PatchVersion" class="form-control text-bg-dark border-secondary" placeholder="manual" />
+        <span asp-validation-for="PatchVersion" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12">
+        <label asp-for="EffectText" class="form-label text-info fw-bold"></label>
+        <textarea asp-for="EffectText" class="form-control text-bg-dark border-secondary" rows="4" placeholder="貼上海克斯效果，或用自己的話整理。"></textarea>
+        <span asp-validation-for="EffectText" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="Tags" class="form-label"></label>
+        <textarea asp-for="Tags" class="form-control text-bg-dark border-secondary" rows="3" placeholder="例如：燃燒; 治療; 範圍; 堆疊暴龍"></textarea>
+        <div class="form-text">標籤是 RAG 判斷搭配的核心，建議用分號分隔。</div>
+        <span asp-validation-for="Tags" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="SynergyNotes" class="form-label"></label>
+        <textarea asp-for="SynergyNotes" class="form-control text-bg-dark border-secondary" rows="3" placeholder="例如：本身沒有系列，但燃燒來源越多越強。"></textarea>
+        <span asp-validation-for="SynergyNotes" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="Notes" class="form-label"></label>
+        <textarea asp-for="Notes" class="form-control text-bg-dark border-secondary" rows="3" placeholder="你的實戰備註，例如哪些英雄特別適合。"></textarea>
+        <span asp-validation-for="Notes" class="text-danger small"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="SourceUrl" class="form-label"></label>
+        <input asp-for="SourceUrl" class="form-control text-bg-dark border-secondary" placeholder="https://..." />
+        <span asp-validation-for="SourceUrl" class="text-danger small"></span>
+    </div>
+</div>

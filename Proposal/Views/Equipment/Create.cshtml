@@ -19,6 +19,17 @@
                             <input asp-for="Name" class="form-control text-bg-dark border-secondary" required placeholder="例如：精靈的木盾" />
                         </div>
 
+                        <div class="mb-3">
+                            <label asp-for="ItemImageUrl" class="form-label text-info">圖片網址</label>
+                            <input asp-for="ItemImageUrl" class="form-control text-bg-dark border-secondary" placeholder="可選，Data Dragon 匯入會自動填入" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="ItemDescription" class="form-label text-info">裝備介紹 / 效果文字</label>
+                            <textarea asp-for="ItemDescription" class="form-control text-bg-dark border-secondary" rows="5" placeholder="例如：唯一被動、主動效果、適合搭配的海克斯或英雄。"></textarea>
+                            <div class="form-text text-secondary">Data Dragon 匯入會自動帶入，手動裝備可以在這裡補上效果說明。</div>
+                        </div>
+
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label asp-for="HP" class="form-label text-danger">增加血量 (HP)</label>
@@ -46,6 +57,76 @@
                             <div class="col-md-6 mb-3">
                                 <label asp-for="MagicDefense" class="form-label text-info">🔮 魔法防禦力</label>
                                 <input asp-for="MagicDefense" type="number" class="form-control text-bg-dark border-secondary" value="0" />
+                            </div>
+                        </div>
+
+                        <div class="border border-secondary rounded p-3 mb-3 bg-opacity-10 bg-white">
+                            <h6 class="text-info fw-bold mb-3">英雄聯盟進階屬性</h6>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="Mana" class="form-label">法力</label>
+                                    <input asp-for="Mana" type="number" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="AbilityHaste" class="form-label">技能急速</label>
+                                    <input asp-for="AbilityHaste" type="number" step="0.01" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="AttackSpeed" class="form-label">攻速 %</label>
+                                    <input asp-for="AttackSpeed" type="number" step="0.01" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="CriticalStrikeChance" class="form-label">爆擊率 %</label>
+                                    <input asp-for="CriticalStrikeChance" type="number" step="0.01" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="MoveSpeed" class="form-label">固定跑速</label>
+                                    <input asp-for="MoveSpeed" type="number" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="MoveSpeedPercent" class="form-label">跑速 %</label>
+                                    <input asp-for="MoveSpeedPercent" type="number" step="0.01" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="Lethality" class="form-label">物理致命</label>
+                                    <input asp-for="Lethality" type="number" step="0.01" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="ArmorPenetrationPercent" class="form-label">物理穿透 %</label>
+                                    <input asp-for="ArmorPenetrationPercent" type="number" step="0.01" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="MagicPenetration" class="form-label">固定魔穿</label>
+                                    <input asp-for="MagicPenetration" type="number" step="0.01" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="MagicPenetrationPercent" class="form-label">魔法穿透 %</label>
+                                    <input asp-for="MagicPenetrationPercent" type="number" step="0.01" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="HealthRegen" class="form-label">回血 %</label>
+                                    <input asp-for="HealthRegen" type="number" step="0.01" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="ManaRegen" class="form-label">回魔 %</label>
+                                    <input asp-for="ManaRegen" type="number" step="0.01" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="LifeSteal" class="form-label">生命偷取 %</label>
+                                    <input asp-for="LifeSteal" type="number" step="0.01" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="Omnivamp" class="form-label">全能吸血 %</label>
+                                    <input asp-for="Omnivamp" type="number" step="0.01" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="HealAndShieldPower" class="form-label">治療護盾強度 %</label>
+                                    <input asp-for="HealAndShieldPower" type="number" step="0.01" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label asp-for="Tenacity" class="form-label">韌性 %</label>
+                                    <input asp-for="Tenacity" type="number" step="0.01" class="form-control text-bg-dark border-secondary" value="0" />
+                                </div>
                             </div>
                         </div>
 

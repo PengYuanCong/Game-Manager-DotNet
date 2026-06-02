@@ -1,534 +1,788 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Data.SqlClient;
-using System.Collections.Generic;
-using System;
-using Proposal.Models; // 這裡用你的 Proposal
-using Microsoft.AspNetCore.Authorization;
+using System.Globalization;
+using System.Net;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using ClosedXML.Excel;
-using System.IO;
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Proposal.Models;
+using Proposal.Services;
 
-namespace Proposal.Controllers // 這裡用你的 Proposal
+namespace Proposal.Controllers;
+
+[Authorize]
+public class EquipmentController : Controller
 {
-    [Authorize]
-    public class EquipmentController : Controller
+    private const long MaxExcelImportBytes = 5 * 1024 * 1024;
+    private static readonly HashSet<string> AllowedExcelExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        private readonly IConfiguration _config;
+        ".xlsx",
+        ".xls"
+    };
 
-        public EquipmentController(IConfiguration config)
+    private readonly IEquipmentRepository _equipmentRepository;
+    private readonly ICalculatorDataRepository _calculatorDataRepository;
+    private readonly IUserActivityLogService _activityLogService;
+
+    public EquipmentController(
+        IEquipmentRepository equipmentRepository,
+        ICalculatorDataRepository calculatorDataRepository,
+        IUserActivityLogService activityLogService)
+    {
+        _equipmentRepository = equipmentRepository;
+        _calculatorDataRepository = calculatorDataRepository;
+        _activityLogService = activityLogService;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Index(
+        string? searchString,
+        string? statFilter,
+        CancellationToken cancellationToken)
+    {
+        var equipmentList = await _equipmentRepository.ListAsync(
+            CurrentUsername(),
+            searchString,
+            statFilter,
+            cancellationToken);
+
+        ViewData["CurrentFilter"] = searchString;
+        ViewData["CurrentStatFilter"] = statFilter;
+        return View(equipmentList);
+    }
+
+    [HttpGet]
+    [Authorize(Roles = "Admin")]
+    public IActionResult Create()
+    {
+        return View();
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(Equipment model, CancellationToken cancellationToken)
+    {
+        await _equipmentRepository.CreateAsync(CurrentUsername(), model, cancellationToken);
+        return RedirectToAction("Index");
+    }
+
+    [HttpGet]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Edit(int id, CancellationToken cancellationToken)
+    {
+        var equipment = await _equipmentRepository.GetByIdAsync(CurrentUsername(), id, cancellationToken);
+        return equipment is null ? RedirectToAction("Index") : View(equipment);
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(Equipment model, CancellationToken cancellationToken)
+    {
+        await _equipmentRepository.UpdateAsync(CurrentUsername(), model, cancellationToken);
+        return RedirectToAction("Index");
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        await _equipmentRepository.DeleteAsync(CurrentUsername(), id, cancellationToken);
+        return RedirectToAction("Index");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ExportExcel(CancellationToken cancellationToken)
+    {
+        var equipments = await _equipmentRepository.ListAsync(CurrentUsername(), cancellationToken: cancellationToken);
+
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("我的裝備清單");
+        WriteEquipmentHeader(worksheet);
+
+        var headerRange = worksheet.Range(1, 1, 1, EquipmentExcelHeaders.Length);
+        headerRange.Style.Font.Bold = true;
+        headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+        var currentRow = 2;
+        foreach (var equipment in equipments)
         {
-            _config = config;
+            WriteEquipmentRow(worksheet, currentRow, equipment);
+            currentRow++;
         }
 
-        [HttpGet]
-        public IActionResult Index(string searchString)
+        worksheet.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        var content = stream.ToArray();
+        var fileName = $"裝備清單_{DateTime.Now:yyyyMMdd}.xlsx";
+
+        return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ImportExcel(IFormFile excelFile, CancellationToken cancellationToken)
+    {
+        if (excelFile == null || excelFile.Length <= 0)
         {
-            List<Equipment> equipmentList = new List<Equipment>();
-            string connString = _config.GetConnectionString("DefaultConnection");
-
-            using (SqlConnection cn = new SqlConnection(connString))
-            {
-                cn.Open();
-
-                // 基礎 SQL：確保資料隔離，只抓本人的裝備
-                string sql = "SELECT * FROM Equipments WHERE Username = @User";
-
-                // 如果使用者有輸入查詢文字，就動態加上名稱過濾條件
-                if (!string.IsNullOrEmpty(searchString))
-                {
-                    sql += " AND Name LIKE @Search";
-                }
-
-                using (SqlCommand cmd = new SqlCommand(sql, cn))
-                {
-                    // 綁定本人的帳號
-                    cmd.Parameters.AddWithValue("@User", User.Identity.Name);
-
-                    // 如果有輸入查詢文字，綁定 LIKE 參數 (使用 % 來達成模糊搜尋)
-                    if (!string.IsNullOrEmpty(searchString))
-                    {
-                        cmd.Parameters.AddWithValue("@Search", "%" + searchString + "%");
-                    }
-
-                    using (SqlDataReader reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            Equipment equipment = new Equipment();
-                            equipment.Id = Convert.ToInt32(reader["Id"]);
-                            equipment.Name = reader["Name"].ToString();
-                            equipment.HP = Convert.ToInt32(reader["HP"]);
-                            equipment.Attack = Convert.ToInt32(reader["Attack"]);
-                            equipment.MagicAttack = Convert.ToInt32(reader["MagicAttack"]);
-                            equipment.PhysicalDefense = Convert.ToInt32(reader["PhysicalDefense"]);
-                            equipment.MagicDefense = Convert.ToInt32(reader["MagicDefense"]);
-                            equipment.Price = Convert.ToInt32(reader["Price"]);
-
-                            equipmentList.Add(equipment);
-                        }
-                    }
-                }
-            }
-
-            // 將使用者剛剛輸入的字傳回前端，讓輸入框能保留搜尋紀錄
-            ViewData["CurrentFilter"] = searchString;
-            return View(equipmentList);
-        }
-
-
-
-        // 1. 負責「顯示」新增表單的畫面 (GET 請求)
-        [HttpGet]
-        public IActionResult Create()
-        {
-            return View();
-        }
-
-        // 2. 負責「接收」表單送出的資料，並寫入資料庫 (POST 請求)
-        [HttpPost]
-        public IActionResult Create(Equipment model)
-        {
-            // 取得連線字串
-            string connString = _config.GetConnectionString("DefaultConnection");
-
-            using (SqlConnection cn = new SqlConnection(connString))
-            {
-                cn.Open();
-
-                // 【面試大加分技巧】：使用 @ 參數化查詢，可以防止駭客進行 SQL Injection 攻擊！
-                string sql = @"INSERT INTO Equipments 
-               (Username, Name, HP, Attack, MagicAttack, PhysicalDefense, MagicDefense, Price) 
-               VALUES 
-               (@User, @Name, @HP, @Attack, @MagicAttack, @PhysicalDefense, @MagicDefense, @Price)";
-
-                using (SqlCommand cmd = new SqlCommand(sql, cn))
-                {
-                    // 將模型裡面的資料，綁定到 SQL 語法的參數上
-                    cmd.Parameters.AddWithValue("@User", User.Identity.Name);
-                    cmd.Parameters.AddWithValue("@Name", model.Name ?? "");
-                    cmd.Parameters.AddWithValue("@HP", model.HP);
-                    cmd.Parameters.AddWithValue("@Attack", model.Attack);
-                    cmd.Parameters.AddWithValue("@MagicAttack", model.MagicAttack);
-                    cmd.Parameters.AddWithValue("@PhysicalDefense", model.PhysicalDefense);
-                    cmd.Parameters.AddWithValue("@MagicDefense", model.MagicDefense);
-                    cmd.Parameters.AddWithValue("@Price", model.Price);
-
-                    // 執行資料庫寫入動作
-                    cmd.ExecuteNonQuery();
-                }
-            }
-
-            // 寫入成功後，把使用者導回裝備列表頁 (Index) 看最新結果
+            TempData["Error"] = "請選擇要上傳的 Excel 檔案！";
             return RedirectToAction("Index");
         }
 
-
-
-        // --- 修改裝備 ---
-        // 1. 負責顯示「修改」表單的畫面 (根據 ID 抓出舊資料)(防止其他人更改id修改別人資料 已改~~)
-        [HttpGet]
-        public IActionResult Edit(int id)
+        if (excelFile.Length > MaxExcelImportBytes)
         {
-            Equipment equipment = new Equipment();
-            string connString = _config.GetConnectionString("DefaultConnection"); // 記得確認連線字串名稱！
-
-            using (SqlConnection cn = new SqlConnection(connString))
-            {
-                cn.Open();
-                string sql = "SELECT * FROM Equipments WHERE Id = @Id AND Username = @User";
-                using (SqlCommand cmd = new SqlCommand(sql, cn))
-                {
-                    cmd.Parameters.AddWithValue("@Id", id);
-                    cmd.Parameters.AddWithValue("@User", User.Identity.Name);
-                    using (SqlDataReader reader = cmd.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            equipment.Id = Convert.ToInt32(reader["Id"]);
-                            equipment.Name = reader["Name"].ToString();
-                            equipment.HP = Convert.ToInt32(reader["HP"]);
-                            equipment.Attack = Convert.ToInt32(reader["Attack"]);
-                            equipment.MagicAttack = Convert.ToInt32(reader["MagicAttack"]);
-                            equipment.PhysicalDefense = Convert.ToInt32(reader["PhysicalDefense"]);
-                            equipment.MagicDefense = Convert.ToInt32(reader["MagicDefense"]);
-                            equipment.Price = Convert.ToInt32(reader["Price"]);
-                        }
-                        else
-                        {
-                            // 💡 防駭客機制：如果撈不到資料 (可能是裝備不存在，或是他想偷改別人的)
-                            // 直接把他踢回首頁，不給他看修改畫面！
-                            return RedirectToAction("Index");
-                        }
-                    }
-                }
-            }
-            return View(equipment); // 把舊資料傳給修改畫面
-        }
-
-        // 2. 負責接收使用者改好的資料，並 UPDATE 進資料庫
-        [HttpPost]
-        public IActionResult Edit(Equipment model)
-        {
-            string connString = _config.GetConnectionString("DefaultConnection");
-
-            using (SqlConnection cn = new SqlConnection(connString))
-            {
-                cn.Open();
-                string sql = @"UPDATE Equipments SET 
-                       Name = @Name, HP = @HP, Attack = @Attack, 
-                       MagicAttack = @MagicAttack, PhysicalDefense = @PhysicalDefense, 
-                       MagicDefense = @MagicDefense, Price = @Price 
-                       WHERE Id = @Id AND Username = @User";
-
-                using (SqlCommand cmd = new SqlCommand(sql, cn))
-                {
-                    // 不要忘記綁定 Id 參數，不然系統不知道要更新哪一筆！
-                    cmd.Parameters.AddWithValue("@Id", model.Id);
-                    cmd.Parameters.AddWithValue("@User", User.Identity.Name);
-                    cmd.Parameters.AddWithValue("@Name", model.Name ?? "");
-                    cmd.Parameters.AddWithValue("@HP", model.HP);
-                    cmd.Parameters.AddWithValue("@Attack", model.Attack);
-                    cmd.Parameters.AddWithValue("@MagicAttack", model.MagicAttack);
-                    cmd.Parameters.AddWithValue("@PhysicalDefense", model.PhysicalDefense);
-                    cmd.Parameters.AddWithValue("@MagicDefense", model.MagicDefense);
-                    cmd.Parameters.AddWithValue("@Price", model.Price);
-
-                    cmd.ExecuteNonQuery();
-                }
-            }
+            TempData["Error"] = "Excel 檔案超過 5 MB，請先縮小檔案後再匯入。";
             return RedirectToAction("Index");
         }
 
-        // --- 刪除裝備 ---
-        // 點擊刪除後直接執行 DELETE 動作
-        public IActionResult Delete(int id)
+        var extension = Path.GetExtension(excelFile.FileName);
+        if (!AllowedExcelExtensions.Contains(extension))
         {
-            string connString = _config.GetConnectionString("DefaultConnection");
-
-            using (SqlConnection cn = new SqlConnection(connString))
-            {
-                cn.Open();
-                string sql = "DELETE FROM Equipments WHERE Id = @Id AND Username = @User";
-                using (SqlCommand cmd = new SqlCommand(sql, cn))
-                {
-                    cmd.Parameters.AddWithValue("@Id", id);
-                    cmd.Parameters.AddWithValue("@User", User.Identity.Name);
-                    cmd.ExecuteNonQuery();
-                }
-            }
+            TempData["Error"] = "只允許匯入 .xlsx 或 .xls 檔案。";
             return RedirectToAction("Index");
         }
 
-        [HttpGet]
-        public IActionResult ExportExcel()
+        var equipments = new List<Equipment>();
+
+        using (var stream = new MemoryStream())
         {
-            string connString = _config.GetConnectionString("DefaultConnection");
-
-            // 建立一個新的 Excel 工作簿
-            using (var workbook = new XLWorkbook())
+            await excelFile.CopyToAsync(stream, cancellationToken);
+            using var workbook = new XLWorkbook(stream);
+            var worksheet = workbook.Worksheet(1);
+            var lastRow = worksheet.LastRowUsed();
+            if (lastRow is null)
             {
-                // 新增一個工作表
-                var worksheet = workbook.Worksheets.Add("我的裝備清單");
-
-                // 設定第一列的標題 (固定格式)
-                worksheet.Cell(1, 1).Value = "裝備名稱";
-                worksheet.Cell(1, 2).Value = "HP";
-                worksheet.Cell(1, 3).Value = "物理攻擊";
-                worksheet.Cell(1, 4).Value = "魔法攻擊";
-                worksheet.Cell(1, 5).Value = "物理防禦";
-                worksheet.Cell(1, 6).Value = "魔法防禦";
-                worksheet.Cell(1, 7).Value = "價格";
-
-                // 把標題列變粗體加底色
-                var headerRange = worksheet.Range("A1:G1");
-                headerRange.Style.Font.Bold = true;
-                headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
-
-                int currentRow = 2; // 從第二列開始填資料
-
-                using (SqlConnection cn = new SqlConnection(connString))
-                {
-                    cn.Open();
-                    // 只抓自己的裝備！
-                    string sql = "SELECT * FROM Equipments WHERE Username = @User";
-                    using (SqlCommand cmd = new SqlCommand(sql, cn))
-                    {
-                        cmd.Parameters.AddWithValue("@User", User.Identity.Name);
-                        using (SqlDataReader reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                worksheet.Cell(currentRow, 1).Value = reader["Name"].ToString();
-                                worksheet.Cell(currentRow, 2).Value = Convert.ToInt32(reader["HP"]);
-                                worksheet.Cell(currentRow, 3).Value = Convert.ToInt32(reader["Attack"]);
-                                worksheet.Cell(currentRow, 4).Value = Convert.ToInt32(reader["MagicAttack"]);
-                                worksheet.Cell(currentRow, 5).Value = Convert.ToInt32(reader["PhysicalDefense"]);
-                                worksheet.Cell(currentRow, 6).Value = Convert.ToInt32(reader["MagicDefense"]);
-                                worksheet.Cell(currentRow, 7).Value = Convert.ToInt32(reader["Price"]);
-                                currentRow++;
-                            }
-                        }
-                    }
-                }
-
-                // 自動調整欄寬
-                worksheet.Columns().AdjustToContents();
-
-                // 準備將檔案回傳給使用者下載
-                using (var stream = new MemoryStream())
-                {
-                    workbook.SaveAs(stream);
-                    var content = stream.ToArray();
-                    string fileName = $"裝備清單_{DateTime.Now:yyyyMMdd}.xlsx";
-
-                    return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
-                }
-            }
-        }
-
-        [HttpPost]
-        public IActionResult ImportExcel(IFormFile excelFile)
-        {
-            if (excelFile == null || excelFile.Length <= 0)
-            {
-                TempData["Error"] = "請選擇要上傳的 Excel 檔案！";
+                TempData["Error"] = "Excel 檔案沒有可匯入的資料。";
                 return RedirectToAction("Index");
             }
 
-            string connString = _config.GetConnectionString("DefaultConnection");
-
-            using (var stream = new MemoryStream())
+            for (var row = 2; row <= lastRow.RowNumber(); row++)
             {
-                excelFile.CopyTo(stream);
-                // 讀取上傳的 Excel 檔案
-                using (var workbook = new XLWorkbook(stream))
+                var equipment = ReadEquipmentFromWorksheet(worksheet, row);
+                if (!string.IsNullOrWhiteSpace(equipment.Name))
                 {
-                    // 抓取第一個工作表
-                    var worksheet = workbook.Worksheet(1);
-                    // 找出總共有幾列資料
-                    var rowCount = worksheet.LastRowUsed().RowNumber();
-
-                    using (SqlConnection cn = new SqlConnection(connString))
-                    {
-                        cn.Open();
-                        // 假設第一列是標題，所以我們從第 2 列開始讀取資料 (row = 2)
-                        for (int row = 2; row <= rowCount; row++)
-                        {
-                            // 讀取第一格的裝備名稱，如果是空的就跳過這行
-                            string name = worksheet.Cell(row, 1).Value.ToString();
-                            if (string.IsNullOrWhiteSpace(name)) continue;
-
-                            // 準備 SQL 寫入語法
-                            string sql = @"INSERT INTO Equipments 
-                                           (Username, Name, HP, Attack, MagicAttack, PhysicalDefense, MagicDefense, Price) 
-                                           VALUES 
-                                           (@User, @Name, @HP, @Attack, @MagicAttack, @PhysicalDefense, @MagicDefense, @Price)";
-
-                            using (SqlCommand cmd = new SqlCommand(sql, cn))
-                            {
-                                // 綁定目前登入者的帳號
-                                cmd.Parameters.AddWithValue("@User", User.Identity.Name);
-                                cmd.Parameters.AddWithValue("@Name", name);
-
-                                // 使用 GetValue<int>() 安全地將 Excel 的數字轉為 C# 的 int
-                                // 如果 Excel 裡面是空的，給預設值 0 防呆
-                                cmd.Parameters.AddWithValue("@HP", worksheet.Cell(row, 2).IsEmpty() ? 0 : worksheet.Cell(row, 2).GetValue<int>());
-                                cmd.Parameters.AddWithValue("@Attack", worksheet.Cell(row, 3).IsEmpty() ? 0 : worksheet.Cell(row, 3).GetValue<int>());
-                                cmd.Parameters.AddWithValue("@MagicAttack", worksheet.Cell(row, 4).IsEmpty() ? 0 : worksheet.Cell(row, 4).GetValue<int>());
-                                cmd.Parameters.AddWithValue("@PhysicalDefense", worksheet.Cell(row, 5).IsEmpty() ? 0 : worksheet.Cell(row, 5).GetValue<int>());
-                                cmd.Parameters.AddWithValue("@MagicDefense", worksheet.Cell(row, 6).IsEmpty() ? 0 : worksheet.Cell(row, 6).GetValue<int>());
-                                cmd.Parameters.AddWithValue("@Price", worksheet.Cell(row, 7).IsEmpty() ? 0 : worksheet.Cell(row, 7).GetValue<int>());
-
-                                cmd.ExecuteNonQuery();
-                            }
-                        }
-                    }
+                    equipments.Add(equipment);
                 }
             }
+        }
 
-            TempData["Success"] = "🎉 Excel 資料匯入成功！";
+        await _equipmentRepository.CreateManyAsync(CurrentUsername(), equipments, cancellationToken);
+        TempData["Success"] = "Excel 資料匯入成功！";
+        return RedirectToAction("Index");
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ImportLeagueItemsFromDataDragon(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var importedCount = await ImportLeagueItemsAsync(cancellationToken);
+            TempData["Success"] = $"英雄聯盟裝備同步完成，處理 {importedCount} 筆裝備。";
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException)
+        {
+            TempData["Error"] = $"英雄聯盟裝備匯入失敗：{ex.Message}";
+        }
+
+        return RedirectToAction("Index");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetEquipmentDetails(int id, CancellationToken cancellationToken)
+    {
+        var equipment = await _equipmentRepository.GetByIdAsync(CurrentUsername(), id, cancellationToken);
+        return Json(equipment);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveLoadout(
+        string loadoutName,
+        List<int> equipmentIds,
+        CancellationToken cancellationToken)
+    {
+        var normalizedEquipmentIds = NormalizeEquipmentIds(equipmentIds);
+        if (string.IsNullOrWhiteSpace(loadoutName) || normalizedEquipmentIds.Count == 0)
+        {
+            return Json(new { success = false, message = "請輸入組合名稱並至少選擇一件裝備！" });
+        }
+
+        var username = CurrentUsername();
+        var selectedNames = await _equipmentRepository.SaveLoadoutAsync(
+            username,
+            loadoutName,
+            normalizedEquipmentIds,
+            cancellationToken);
+
+        await _activityLogService.AddAsync(
+            username,
+            "loadout",
+            $"儲存裝備組合：{loadoutName}",
+            selectedNames.Count == 0 ? $"共 {normalizedEquipmentIds.Count} 件裝備" : string.Join("、", selectedNames),
+            Url.Action("Index", "Equipment"),
+            cancellationToken);
+
+        return Json(new { success = true, message = "組合儲存成功！" });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetLoadouts(CancellationToken cancellationToken)
+    {
+        var loadouts = await _equipmentRepository.GetLoadoutsAsync(CurrentUsername(), cancellationToken);
+        return Json(new { success = true, loadouts });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateLoadout(
+        int loadoutId,
+        string loadoutName,
+        List<int> equipmentIds,
+        CancellationToken cancellationToken)
+    {
+        var normalizedEquipmentIds = NormalizeEquipmentIds(equipmentIds);
+        if (loadoutId <= 0 || string.IsNullOrWhiteSpace(loadoutName) || normalizedEquipmentIds.Count == 0)
+        {
+            return Json(new { success = false, message = "請選擇組合、輸入名稱，並至少保留一件裝備。" });
+        }
+
+        var username = CurrentUsername();
+        var selectedNames = await _equipmentRepository.UpdateLoadoutAsync(
+            username,
+            loadoutId,
+            loadoutName,
+            normalizedEquipmentIds,
+            cancellationToken);
+
+        if (selectedNames is null)
+        {
+            return Json(new { success = false, message = "找不到要更新的組合。" });
+        }
+
+        await _activityLogService.AddAsync(
+            username,
+            "loadout",
+            $"更新裝備組合：{loadoutName}",
+            selectedNames.Count == 0 ? $"共 {normalizedEquipmentIds.Count} 件裝備" : string.Join("、", selectedNames),
+            Url.Action("Index", "Equipment"),
+            cancellationToken);
+
+        return Json(new { success = true, message = "組合已更新。" });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteLoadout(int loadoutId, CancellationToken cancellationToken)
+    {
+        if (loadoutId <= 0)
+        {
+            return Json(new { success = false, message = "找不到要刪除的組合。" });
+        }
+
+        var username = CurrentUsername();
+        var deletedName = await _equipmentRepository.DeleteLoadoutAsync(username, loadoutId, cancellationToken);
+        if (deletedName is null)
+        {
+            return Json(new { success = false, message = "找不到要刪除的組合。" });
+        }
+
+        await _activityLogService.AddAsync(
+            username,
+            "loadout",
+            $"刪除裝備組合：{deletedName}",
+            "使用者手動刪除裝備組合",
+            Url.Action("Index", "Equipment"),
+            cancellationToken);
+
+        return Json(new { success = true, message = "組合已刪除。" });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteInvalidLoadouts(CancellationToken cancellationToken)
+    {
+        var username = CurrentUsername();
+        var deletedCount = await _equipmentRepository.DeleteInvalidLoadoutsAsync(username, cancellationToken);
+
+        if (deletedCount > 0)
+        {
+            await _activityLogService.AddAsync(
+                username,
+                "loadout",
+                $"清理失效裝備組合：{deletedCount} 筆",
+                "組合內裝備已不存在，因此移除失效資料。",
+                Url.Action("Index", "Equipment"),
+                cancellationToken);
+        }
+
+        return Json(new
+        {
+            success = true,
+            message = deletedCount == 0 ? "目前沒有失效組合。" : $"已清理 {deletedCount} 筆失效組合。"
+        });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Search(string? query, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
             return RedirectToAction("Index");
         }
 
+        var searchResults = await _equipmentRepository.ListAsync(
+            CurrentUsername(),
+            query,
+            cancellationToken: cancellationToken);
 
+        ViewData["SearchTerm"] = query;
+        return View(searchResults);
+    }
 
+    [HttpGet]
+    public async Task<IActionResult> GetLoadoutStats(int loadoutId, CancellationToken cancellationToken)
+    {
+        var stats = await _calculatorDataRepository.GetLoadoutStatsAsync(
+            CurrentUsername(),
+            loadoutId,
+            cancellationToken);
 
-        // 讓前端可以透過 ID 抓取特定裝備的數值
-        [HttpGet]
-        public IActionResult GetEquipmentDetails(int id)
+        return stats is null ? NotFound() : Json(stats);
+    }
+
+    private async Task<int> ImportLeagueItemsAsync(CancellationToken cancellationToken)
+    {
+        using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Proposal ARAM item importer");
+
+        var versionsJson = await httpClient.GetStringAsync(
+            "https://ddragon.leagueoflegends.com/api/versions.json",
+            cancellationToken);
+        var versions = JsonSerializer.Deserialize<List<string>>(versionsJson);
+        var latestVersion = versions?.FirstOrDefault()
+            ?? throw new InvalidOperationException("無法取得 Data Dragon 版本。");
+
+        var itemJson = await httpClient.GetStringAsync(
+            $"https://ddragon.leagueoflegends.com/cdn/{latestVersion}/data/zh_TW/item.json",
+            cancellationToken);
+
+        using var document = JsonDocument.Parse(itemJson);
+        var items = document.RootElement.GetProperty("data");
+        var importedCount = 0;
+        var username = CurrentUsername();
+
+        foreach (var itemProperty in items.EnumerateObject())
         {
-            string connString = _config.GetConnectionString("DefaultConnection");
-            Equipment eq = null;
-
-            using (SqlConnection cn = new SqlConnection(connString))
+            var item = itemProperty.Value;
+            if (!ShouldImportLeagueItem(item))
             {
-                cn.Open();
-                string sql = "SELECT * FROM Equipments WHERE Id = @Id AND Username = @User";
-                using (SqlCommand cmd = new SqlCommand(sql, cn))
-                {
-                    cmd.Parameters.AddWithValue("@Id", id);
-                    cmd.Parameters.AddWithValue("@User", User.Identity.Name);
-                    using (SqlDataReader dr = cmd.ExecuteReader())
-                    {
-                        if (dr.Read())
-                        {
-                            eq = new Equipment
-                            {
-                                HP = Convert.ToInt32(dr["HP"]),
-                                Attack = Convert.ToInt32(dr["Attack"]),
-                                MagicAttack = Convert.ToInt32(dr["MagicAttack"]),
-                                PhysicalDefense = Convert.ToInt32(dr["PhysicalDefense"]),
-                                MagicDefense = Convert.ToInt32(dr["MagicDefense"]),
-                                // 👇 就是少了這一行！請把價格也包裝進去
-                                Price = Convert.ToInt32(dr["Price"])
-                            };
-                        }
-                    }
-                }
+                continue;
             }
-            return Json(eq);
+
+            var equipment = CreateEquipmentFromDataDragon(itemProperty.Name, item, latestVersion);
+            if (string.IsNullOrWhiteSpace(equipment.Name))
+            {
+                continue;
+            }
+
+            await _equipmentRepository.UpsertAsync(username, equipment, cancellationToken);
+            importedCount++;
         }
 
+        return importedCount;
+    }
 
-    
+    private string CurrentUsername()
+    {
+        return User.Identity?.Name ?? "anonymous";
+    }
 
-    [HttpPost]
-        public IActionResult SaveLoadout(string loadoutName, List<int> equipmentIds)
+    private static List<int> NormalizeEquipmentIds(IEnumerable<int>? equipmentIds)
+    {
+        return (equipmentIds ?? Enumerable.Empty<int>())
+            .Where(id => id > 0)
+            .Distinct()
+            .Take(6)
+            .ToList();
+    }
+
+    private static bool ShouldImportLeagueItem(JsonElement item)
+    {
+        if (!item.TryGetProperty("gold", out var gold)
+            || !gold.TryGetProperty("purchasable", out var purchasable)
+            || !purchasable.GetBoolean()
+            || !gold.TryGetProperty("total", out var totalGold)
+            || totalGold.GetInt32() <= 0)
         {
-            if (string.IsNullOrEmpty(loadoutName) || equipmentIds == null || equipmentIds.Count == 0)
-            {
-                return Json(new { success = false, message = "請輸入組合名稱並至少選擇一件裝備！" });
-            }
-
-            string connString = _config.GetConnectionString("DefaultConnection");
-            using (SqlConnection cn = new SqlConnection(connString))
-            {
-                cn.Open();
-                string sql = @"INSERT INTO Loadouts (Username, LoadoutName, Eq1_Id, Eq2_Id, Eq3_Id, Eq4_Id, Eq5_Id, Eq6_Id) 
-                       VALUES (@User, @LName, @E1, @E2, @E3, @E4, @E5, @E6)";
-
-                using (SqlCommand cmd = new SqlCommand(sql, cn))
-                {
-                    cmd.Parameters.AddWithValue("@User", User.Identity.Name);
-                    cmd.Parameters.AddWithValue("@LName", loadoutName);
-
-                    // 確保最多填入六件，不足的填 DBNull
-                    for (int i = 1; i <= 6; i++)
-                    {
-                        if (i <= equipmentIds.Count)
-                            cmd.Parameters.AddWithValue($"@E{i}", equipmentIds[i - 1]);
-                        else
-                            cmd.Parameters.AddWithValue($"@E{i}", DBNull.Value);
-                    }
-                    cmd.ExecuteNonQuery();
-                }
-            }
-            return Json(new { success = true, message = "組合儲存成功！" });
+            return false;
         }
 
-
-
-        [HttpGet]
-        public IActionResult Search(string query)
+        if (item.TryGetProperty("maps", out var maps)
+            && maps.TryGetProperty("12", out var aramMap)
+            && !aramMap.GetBoolean())
         {
-            // 如果沒有輸入任何關鍵字，直接導回首頁
-            if (string.IsNullOrWhiteSpace(query))
-            {
-                return RedirectToAction("Index", "Home");
-            }
-
-            List<Equipment> searchResults = new List<Equipment>();
-            string connString = _config.GetConnectionString("DefaultConnection");
-
-            using (SqlConnection cn = new SqlConnection(connString))
-            {
-                cn.Open();
-                // 模糊搜尋名稱或包含該關鍵字的裝備，同樣要確保 Username 隔離
-                string sql = "SELECT * FROM Equipments WHERE Name LIKE @q AND Username = @User";
-
-                using (SqlCommand cmd = new SqlCommand(sql, cn))
-                {
-                    cmd.Parameters.AddWithValue("@q", "%" + query + "%");
-                    cmd.Parameters.AddWithValue("@User", User.Identity.Name);
-
-                    using (SqlDataReader reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            searchResults.Add(new Equipment
-                            {
-                                Id = Convert.ToInt32(reader["Id"]),
-                                Name = reader["Name"].ToString(),
-                                HP = Convert.ToInt32(reader["HP"]),
-                                Attack = Convert.ToInt32(reader["Attack"]),
-                                MagicAttack = Convert.ToInt32(reader["MagicAttack"]),
-                                PhysicalDefense = Convert.ToInt32(reader["PhysicalDefense"]),
-                                MagicDefense = Convert.ToInt32(reader["MagicDefense"]),
-                                Price = Convert.ToInt32(reader["Price"])
-                            });
-                        }
-                    }
-                }
-            }
-
-            // 將搜尋關鍵字帶到 View，方便顯示「您搜尋的是：XXX」
-            ViewData["SearchTerm"] = query;
-            return View(searchResults);
+            return false;
         }
 
-
-
-        // 取得特定組合的總數值 (用於計算公式)
-        [HttpGet]
-        public IActionResult GetLoadoutStats(int loadoutId)
+        if (!item.TryGetProperty("tags", out var tags))
         {
-            string connString = _config.GetConnectionString("DefaultConnection");
-
-            using (SqlConnection cn = new SqlConnection(connString))
-            {
-                cn.Open();
-                // 使用 CROSS APPLY 一次性計算出該組合內 6 個欄位對應裝備的總和
-                string sql = @"
-            SELECT 
-                ISNULL(SUM(e.HP), 0) as TotalHP, 
-                ISNULL(SUM(e.Attack), 0) as TotalAtk, 
-                ISNULL(SUM(e.MagicAttack), 0) as TotalMAtk,
-                ISNULL(SUM(e.PhysicalDefense), 0) as TotalPDef,
-                ISNULL(SUM(e.MagicDefense), 0) as TotalMDef,
-                ISNULL(SUM(e.Price), 0) as TotalPrice
-            FROM Loadouts l
-            CROSS APPLY (
-                SELECT HP, Attack, MagicAttack, PhysicalDefense, MagicDefense, Price 
-                FROM Equipments 
-                WHERE Id IN (l.Eq1_Id, l.Eq2_Id, l.Eq3_Id, l.Eq4_Id, l.Eq5_Id, l.Eq6_Id)
-            ) e
-            WHERE l.Id = @LId AND l.Username = @User";
-
-                using (SqlCommand cmd = new SqlCommand(sql, cn))
-                {
-                    cmd.Parameters.AddWithValue("@LId", loadoutId);
-                    cmd.Parameters.AddWithValue("@User", User.Identity.Name);
-                    using (SqlDataReader dr = cmd.ExecuteReader())
-                    {
-                        if (dr.Read())
-                        {
-                            return Json(new
-                            {
-                                hp = dr["TotalHP"],
-                                attack = dr["TotalAtk"],
-                                magicAttack = dr["TotalMAtk"],
-                                pDef = dr["TotalPDef"],
-                                mDef = dr["TotalMDef"],
-                                price = dr["TotalPrice"]
-                            });
-                        }
-                    }
-                }
-            }
-            return NotFound();
+            return true;
         }
 
+        return !tags.EnumerateArray().Any(tag =>
+            string.Equals(tag.GetString(), "Consumable", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(tag.GetString(), "Trinket", StringComparison.OrdinalIgnoreCase));
+    }
 
+    private static Equipment CreateEquipmentFromDataDragon(string itemId, JsonElement item, string latestVersion)
+    {
+        var stats = item.TryGetProperty("stats", out var statsValue)
+            ? statsValue
+            : default;
+        var gold = item.GetProperty("gold");
+        var tags = item.TryGetProperty("tags", out var tagsValue)
+            ? string.Join("; ", tagsValue.EnumerateArray().Select(tag => tag.GetString()).Where(tag => !string.IsNullOrWhiteSpace(tag)))
+            : string.Empty;
+        var statText = CleanStatsBlock(item);
+
+        var equipment = new Equipment
+        {
+            DataDragonId = itemId,
+            ItemImageUrl = $"https://ddragon.leagueoflegends.com/cdn/{latestVersion}/img/item/{itemId}.png",
+            Name = item.GetProperty("name").GetString()?.Trim() ?? string.Empty,
+            HP = GetItemStat(stats, "FlatHPPoolMod"),
+            Mana = GetItemStat(stats, "FlatMPPoolMod"),
+            Attack = GetItemStat(stats, "FlatPhysicalDamageMod"),
+            MagicAttack = GetItemStat(stats, "FlatMagicDamageMod"),
+            PhysicalDefense = GetItemStat(stats, "FlatArmorMod"),
+            MagicDefense = GetItemStat(stats, "FlatSpellBlockMod"),
+            HealthRegen = GetItemStatPercent(stats, "PercentBaseHPRegenMod", "PercentHPRegenMod", "FlatHPRegenMod"),
+            ManaRegen = GetItemStatPercent(stats, "PercentBaseMPRegenMod", "PercentMPRegenMod", "FlatMPRegenMod"),
+            AbilityHaste = GetItemStatDecimal(stats, "AbilityHaste", "rPercentCooldownMod"),
+            AttackSpeed = GetItemStatPercent(stats, "PercentAttackSpeedMod", "FlatAttackSpeedMod"),
+            CriticalStrikeChance = GetItemStatPercent(stats, "FlatCritChanceMod", "PercentCritChanceMod"),
+            MoveSpeed = GetItemStat(stats, "FlatMovementSpeedMod"),
+            MoveSpeedPercent = GetItemStatPercent(stats, "PercentMovementSpeedMod"),
+            Lethality = GetItemStatDecimal(stats, "FlatArmorPenetrationMod"),
+            ArmorPenetrationPercent = GetItemStatPercent(stats, "PercentArmorPenetrationMod", "PercentBonusArmorPenetrationMod"),
+            MagicPenetration = GetItemStatDecimal(stats, "FlatMagicPenetrationMod"),
+            MagicPenetrationPercent = GetItemStatPercent(stats, "PercentMagicPenetrationMod"),
+            LifeSteal = GetItemStatPercent(stats, "PercentLifeStealMod"),
+            Omnivamp = GetItemStatPercent(stats, "PercentOmnivampMod", "PercentSpellVampMod"),
+            HealAndShieldPower = GetItemStatPercent(stats, "HealAndShieldPower", "PercentHealAndShieldPowerMod"),
+            Tenacity = GetItemStatPercent(stats, "Tenacity", "PercentTenacityMod"),
+            Price = gold.TryGetProperty("total", out var totalGold) ? totalGold.GetInt32() : 0,
+            ItemTags = tags,
+            ItemDescription = $"{CleanDescription(item)}\nData Dragon {latestVersion}".Trim()
+        };
+
+        ApplyDescriptionStats(equipment, statText);
+        return equipment;
+    }
+
+    private static readonly string[] EquipmentExcelHeaders =
+    [
+        "裝備名稱",
+        "HP",
+        "法力",
+        "物理攻擊",
+        "魔法攻擊",
+        "物理防禦",
+        "魔法防禦",
+        "回血%",
+        "回魔%",
+        "技能急速",
+        "攻速%",
+        "爆擊率%",
+        "跑速",
+        "跑速%",
+        "物理致命",
+        "物理穿透%",
+        "固定魔穿",
+        "魔法穿透%",
+        "生命偷取%",
+        "全能吸血%",
+        "治療護盾強度%",
+        "韌性%",
+        "價格",
+        "DataDragonId",
+        "圖片網址",
+        "標籤",
+        "描述"
+    ];
+
+    private static int GetItemStat(JsonElement stats, params string[] keys)
+    {
+        return (int)Math.Round(GetItemStatDecimal(stats, keys), MidpointRounding.AwayFromZero);
+    }
+
+    private static decimal GetItemStatDecimal(JsonElement stats, params string[] keys)
+    {
+        if (stats.ValueKind != JsonValueKind.Object)
+        {
+            return 0;
+        }
+
+        foreach (var key in keys)
+        {
+            if (stats.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.Number)
+            {
+                return value.GetDecimal();
+            }
+        }
+
+        return 0;
+    }
+
+    private static decimal GetItemStatPercent(JsonElement stats, params string[] keys)
+    {
+        var value = GetItemStatDecimal(stats, keys);
+        return Math.Abs(value) <= 1 ? value * 100 : value;
+    }
+
+    private static void ApplyDescriptionStats(Equipment equipment, string statText)
+    {
+        if (string.IsNullOrWhiteSpace(statText))
+        {
+            return;
+        }
+
+        var hp = FindFlatStat(statText, "生命");
+        if (hp > 0) equipment.HP = DecimalToInt(hp.Value);
+
+        var mana = FindFlatStat(statText, "魔力");
+        if (mana > 0) equipment.Mana = DecimalToInt(mana.Value);
+
+        var attack = FindFlatStat(statText, "物理攻擊");
+        if (attack > 0) equipment.Attack = DecimalToInt(attack.Value);
+
+        var magicAttack = FindFlatStat(statText, "魔法攻擊");
+        if (magicAttack > 0) equipment.MagicAttack = DecimalToInt(magicAttack.Value);
+
+        var armor = FindFlatStat(statText, "物理防禦");
+        if (armor > 0) equipment.PhysicalDefense = DecimalToInt(armor.Value);
+
+        var magicResist = FindFlatStat(statText, "魔法防禦");
+        if (magicResist > 0) equipment.MagicDefense = DecimalToInt(magicResist.Value);
+
+        var healthRegen = FindPercentStat(statText, "基礎生命回復");
+        if (healthRegen > 0) equipment.HealthRegen = healthRegen.Value;
+
+        var manaRegen = FindPercentStat(statText, "基礎魔力回復");
+        if (manaRegen > 0) equipment.ManaRegen = manaRegen.Value;
+
+        var abilityHaste = FindFlatStat(statText, "技能加速");
+        if (abilityHaste > 0) equipment.AbilityHaste = abilityHaste.Value;
+
+        var attackSpeed = FindPercentStat(statText, "攻擊速度");
+        if (attackSpeed > 0) equipment.AttackSpeed = attackSpeed.Value;
+
+        var crit = FindPercentStat(statText, "暴擊率");
+        if (crit > 0) equipment.CriticalStrikeChance = crit.Value;
+
+        var moveSpeed = FindFlatStat(statText, "跑速");
+        if (moveSpeed > 0) equipment.MoveSpeed = DecimalToInt(moveSpeed.Value);
+
+        var moveSpeedPercent = FindPercentStat(statText, "跑速");
+        if (moveSpeedPercent > 0) equipment.MoveSpeedPercent = moveSpeedPercent.Value;
+
+        var lethality = FindFlatStat(statText, "物理致命");
+        if (lethality > 0) equipment.Lethality = lethality.Value;
+
+        var armorPen = FindPercentStat(statText, "物理穿透");
+        if (armorPen > 0) equipment.ArmorPenetrationPercent = armorPen.Value;
+
+        var magicPen = FindFlatStat(statText, "魔法穿透");
+        if (magicPen > 0) equipment.MagicPenetration = magicPen.Value;
+
+        var magicPenPercent = FindPercentStat(statText, "魔法穿透");
+        if (magicPenPercent > 0) equipment.MagicPenetrationPercent = magicPenPercent.Value;
+
+        var lifeSteal = FindPercentStat(statText, "普攻吸血");
+        if (lifeSteal > 0) equipment.LifeSteal = lifeSteal.Value;
+
+        var omnivamp = FindPercentStat(statText, "全能吸血");
+        if (omnivamp > 0) equipment.Omnivamp = omnivamp.Value;
+
+        var healAndShield = FindPercentStat(statText, "治療與護盾量");
+        if (healAndShield > 0) equipment.HealAndShieldPower = healAndShield.Value;
+
+        var tenacity = FindPercentStat(statText, "韌性");
+        if (tenacity > 0) equipment.Tenacity = tenacity.Value;
+    }
+
+    private static decimal? FindFlatStat(string text, string label)
+    {
+        return FindStat(text, $@"(?<value>\d+(?:\.\d+)?)\s*{Regex.Escape(label)}");
+    }
+
+    private static decimal? FindPercentStat(string text, string label)
+    {
+        return FindStat(text, $@"(?<value>\d+(?:\.\d+)?)\s*%\s*{Regex.Escape(label)}");
+    }
+
+    private static decimal? FindStat(string text, string pattern)
+    {
+        var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        return decimal.TryParse(
+            match.Groups["value"].Value,
+            NumberStyles.Number,
+            CultureInfo.InvariantCulture,
+            out var value)
+            ? value
+            : null;
+    }
+
+    private static int DecimalToInt(decimal value)
+    {
+        return (int)Math.Round(value, MidpointRounding.AwayFromZero);
+    }
+
+    private static string CleanStatsBlock(JsonElement item)
+    {
+        if (!item.TryGetProperty("description", out var descriptionElement))
+        {
+            return string.Empty;
+        }
+
+        var description = descriptionElement.GetString() ?? string.Empty;
+        var match = Regex.Match(description, "<stats>(.*?)</stats>", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        return match.Success ? HtmlToText(match.Groups[1].Value) : string.Empty;
+    }
+
+    private static string CleanDescription(JsonElement item)
+    {
+        if (!item.TryGetProperty("description", out var descriptionElement))
+        {
+            return string.Empty;
+        }
+
+        var description = descriptionElement.GetString() ?? string.Empty;
+        return HtmlToText(description);
+    }
+
+    private static string HtmlToText(string html)
+    {
+        var text = Regex.Replace(html, "<br\\s*/?>", " ", RegexOptions.IgnoreCase);
+        text = Regex.Replace(text, "<.*?>", " ");
+        text = Regex.Replace(text, "\\s+", " ");
+        return WebUtility.HtmlDecode(text).Trim();
+    }
+
+    private static void WriteEquipmentHeader(IXLWorksheet worksheet)
+    {
+        for (var i = 0; i < EquipmentExcelHeaders.Length; i++)
+        {
+            worksheet.Cell(1, i + 1).Value = EquipmentExcelHeaders[i];
+        }
+    }
+
+    private static void WriteEquipmentRow(IXLWorksheet worksheet, int row, Equipment equipment)
+    {
+        worksheet.Cell(row, 1).Value = equipment.Name;
+        worksheet.Cell(row, 2).Value = equipment.HP;
+        worksheet.Cell(row, 3).Value = equipment.Mana;
+        worksheet.Cell(row, 4).Value = equipment.Attack;
+        worksheet.Cell(row, 5).Value = equipment.MagicAttack;
+        worksheet.Cell(row, 6).Value = equipment.PhysicalDefense;
+        worksheet.Cell(row, 7).Value = equipment.MagicDefense;
+        worksheet.Cell(row, 8).Value = equipment.HealthRegen;
+        worksheet.Cell(row, 9).Value = equipment.ManaRegen;
+        worksheet.Cell(row, 10).Value = equipment.AbilityHaste;
+        worksheet.Cell(row, 11).Value = equipment.AttackSpeed;
+        worksheet.Cell(row, 12).Value = equipment.CriticalStrikeChance;
+        worksheet.Cell(row, 13).Value = equipment.MoveSpeed;
+        worksheet.Cell(row, 14).Value = equipment.MoveSpeedPercent;
+        worksheet.Cell(row, 15).Value = equipment.Lethality;
+        worksheet.Cell(row, 16).Value = equipment.ArmorPenetrationPercent;
+        worksheet.Cell(row, 17).Value = equipment.MagicPenetration;
+        worksheet.Cell(row, 18).Value = equipment.MagicPenetrationPercent;
+        worksheet.Cell(row, 19).Value = equipment.LifeSteal;
+        worksheet.Cell(row, 20).Value = equipment.Omnivamp;
+        worksheet.Cell(row, 21).Value = equipment.HealAndShieldPower;
+        worksheet.Cell(row, 22).Value = equipment.Tenacity;
+        worksheet.Cell(row, 23).Value = equipment.Price;
+        worksheet.Cell(row, 24).Value = equipment.DataDragonId;
+        worksheet.Cell(row, 25).Value = equipment.ItemImageUrl;
+        worksheet.Cell(row, 26).Value = equipment.ItemTags;
+        worksheet.Cell(row, 27).Value = equipment.ItemDescription;
+    }
+
+    private static Equipment ReadEquipmentFromWorksheet(IXLWorksheet worksheet, int row)
+    {
+        var isLegacyFormat = worksheet.LastColumnUsed()?.ColumnNumber() <= 7
+            || worksheet.Cell(1, 7).Value.ToString().Contains("價格", StringComparison.OrdinalIgnoreCase);
+        if (isLegacyFormat)
+        {
+            return new Equipment
+            {
+                Name = worksheet.Cell(row, 1).Value.ToString(),
+                HP = ReadIntCell(worksheet, row, 2),
+                Attack = ReadIntCell(worksheet, row, 3),
+                MagicAttack = ReadIntCell(worksheet, row, 4),
+                PhysicalDefense = ReadIntCell(worksheet, row, 5),
+                MagicDefense = ReadIntCell(worksheet, row, 6),
+                Price = ReadIntCell(worksheet, row, 7)
+            };
+        }
+
+        return new Equipment
+        {
+            Name = worksheet.Cell(row, 1).Value.ToString(),
+            HP = ReadIntCell(worksheet, row, 2),
+            Mana = ReadIntCell(worksheet, row, 3),
+            Attack = ReadIntCell(worksheet, row, 4),
+            MagicAttack = ReadIntCell(worksheet, row, 5),
+            PhysicalDefense = ReadIntCell(worksheet, row, 6),
+            MagicDefense = ReadIntCell(worksheet, row, 7),
+            HealthRegen = ReadDecimalCell(worksheet, row, 8),
+            ManaRegen = ReadDecimalCell(worksheet, row, 9),
+            AbilityHaste = ReadDecimalCell(worksheet, row, 10),
+            AttackSpeed = ReadDecimalCell(worksheet, row, 11),
+            CriticalStrikeChance = ReadDecimalCell(worksheet, row, 12),
+            MoveSpeed = ReadIntCell(worksheet, row, 13),
+            MoveSpeedPercent = ReadDecimalCell(worksheet, row, 14),
+            Lethality = ReadDecimalCell(worksheet, row, 15),
+            ArmorPenetrationPercent = ReadDecimalCell(worksheet, row, 16),
+            MagicPenetration = ReadDecimalCell(worksheet, row, 17),
+            MagicPenetrationPercent = ReadDecimalCell(worksheet, row, 18),
+            LifeSteal = ReadDecimalCell(worksheet, row, 19),
+            Omnivamp = ReadDecimalCell(worksheet, row, 20),
+            HealAndShieldPower = ReadDecimalCell(worksheet, row, 21),
+            Tenacity = ReadDecimalCell(worksheet, row, 22),
+            Price = ReadIntCell(worksheet, row, 23),
+            DataDragonId = ReadStringCell(worksheet, row, 24),
+            ItemImageUrl = ReadStringCell(worksheet, row, 25),
+            ItemTags = ReadStringCell(worksheet, row, 26),
+            ItemDescription = ReadStringCell(worksheet, row, 27)
+        };
+    }
+
+    private static int ReadIntCell(IXLWorksheet worksheet, int row, int column)
+    {
+        return worksheet.Cell(row, column).IsEmpty() ? 0 : worksheet.Cell(row, column).GetValue<int>();
+    }
+
+    private static decimal ReadDecimalCell(IXLWorksheet worksheet, int row, int column)
+    {
+        return worksheet.Cell(row, column).IsEmpty() ? 0 : worksheet.Cell(row, column).GetValue<decimal>();
+    }
+
+    private static string? ReadStringCell(IXLWorksheet worksheet, int row, int column)
+    {
+        var value = worksheet.Cell(row, column).Value.ToString();
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }
