@@ -1,36 +1,96 @@
-# ⚔️ Game-Manager-DotNet
+# 彭彭遊戲基地 - ARAM AI 配裝推薦系統
 
-一個專為 遊戲 玩家設計的綜合管理系統，基於 ASP.NET Core MVC 開發。
+這個專案原本是 ASP.NET Core MVC 的遊戲裝備管理系統，現在延伸成以 **英雄聯盟隨機單中大亂鬥 ARAM Mayhem** 為核心的 AI 推薦網站。系統會結合英雄資料、海克斯知識庫、裝備屬性與玩家收藏回饋，協助玩家在不同對局階段快速判斷「這一輪三選一該選什麼」以及後續裝備方向。
 
-## 🌟 核心功能
-- **裝備管理庫**：支援單件裝備的 CRUD 操作，並整合 **ClosedXML** 實現 Excel 資料匯入與導出。
-- **組合計算機**：自定義「裝備組合 (Loadouts)」，系統自動執行資料庫層級的屬性加總，一鍵計算 EHP 與 CP 值。
-- **影音整合中心**：串接 **YouTube Data API v3**，支援關鍵字搜尋、影片預覽及本地影片拖曳上傳播放。
-- **資安實踐**：使用 **Secret Manager** 管理 API 金鑰，確保開發環境安全性。
-- Feature: 整合 Chart.js 雷達圖與視覺化佈局優化
-- 同時也具備自定義趣味化錯誤處理機制呦!!
+![彭彭遊戲基地首頁](docs/images/readme-home.png)
 
-## 🛠️ 技術棧
-- **Framework**: ASP.NET Core 8.0 MVC
-- **Database**: SQL Server (Entity Framework / ADO.NET)
-- **Frontend**: Bootstrap 5, JavaScript (Async/Await), Bootstrap Icons
-- **Tools**: NuGet (ClosedXML, Microsoft.Data.SqlClient)
+## 主要功能
 
-## 📋 快速開始
-1. Clone 此專案。
-2. 於 `appsettings.json` 設定您的 SQL Server 連線字串。
-3. 透過 `dotnet user-secrets` 設定您的 YouTube API Key。
-4. 執行 `Update-Database` 完成資料庫遷移。
+- **AI 推薦**：輸入英雄、對局階段、當輪三選一海克斯與備註，透過本機 RAG 知識庫搭配 OpenRouter 產生推薦。
+- **英雄知識庫**：管理 ARAM Mayhem 英雄定位、推薦海克斯、打法筆記與人工標註。
+- **海克斯知識庫**：依稀有度、套裝系列與屬性標籤整理海克斯，支援篩選與管理員 CRUD。
+- **裝備管理**：匯入英雄聯盟裝備資料，支援屬性篩選、套裝儲存、公式計算與裝備介紹。
+- **玩家回饋**：收藏或採納 AI 推薦，讓後續相似情境能參考使用者認可的答案。
+- **個人資料**：保存近期查詢、推薦紀錄與裝備組合，採汰舊換新方式避免資料無限制成長。
+- **部署準備**：提供 Supabase PostgreSQL schema、資料搬移工具、Dockerfile、Render 設定與部署檢查腳本。
 
-<img width="1915" height="956" alt="image" src="https://github.com/user-attachments/assets/f3faf4e9-d3a9-4d52-a1d8-bf1caa126357" />
+## 技術架構
 
-<img width="1781" height="960" alt="image" src="https://github.com/user-attachments/assets/542ac653-b1b3-40d3-9f6b-fc8c4b885094" />
+- **Backend**：ASP.NET Core MVC (`net10.0`)
+- **Database**：SQL Server / Supabase PostgreSQL，可透過 `Database__Provider` 切換
+- **AI Provider**：OpenRouter Chat Completions
+- **Frontend**：Razor Views、Bootstrap 5、Bootstrap Icons、客製暗色遊戲風格 UI
+- **Data Tools**：Data Dragon / OP.GG 參考資料匯入工具、人工標註輔助工具
+- **Deployment**：Docker、Render blueprint、Supabase migration scripts
 
-<img width="1868" height="1076" alt="image" src="https://github.com/user-attachments/assets/8266dd78-f76d-414a-baca-6882b7fe4327" />
+## 快速開始
 
+```powershell
+dotnet restore Proposal.slnx
+dotnet build Proposal.slnx
+powershell -ExecutionPolicy Bypass -File StartDevServer.ps1 -Port 5214
+```
 
-<img width="1807" height="957" alt="image" src="https://github.com/user-attachments/assets/4fcd91c3-d508-46b6-a86a-1a698e00cf23" />
+開啟：
 
-<img width="1897" height="955" alt="image" src="https://github.com/user-attachments/assets/f4607783-40e0-4d70-b67e-279373875d5b" />
+```text
+http://localhost:5214
+```
 
-<img width="1903" height="922" alt="image" src="https://github.com/user-attachments/assets/d846f8ac-657c-46f1-9822-0b84d4f6d0bc" />
+本機開發需要自行設定 `Proposal/appsettings.Development.json` 或 `dotnet user-secrets`。請不要把真實 API key、資料庫密碼或 Supabase secret key 提交到 Git。
+
+## 必要設定
+
+本機或雲端執行時常用環境變數：
+
+```text
+Database__Provider=SqlServer 或 Supabase
+ConnectionStrings__DefaultConnection=<server-side database connection string>
+OpenRouter__ApiKey=<OpenRouter API key>
+APP_ADMIN_USERS=<admin account list>
+YouTubeSettings__ApiKey=<optional YouTube API key>
+```
+
+資料搬移到 Supabase 時，請只在本機 shell 或雲端 secret manager 設定：
+
+```text
+MIGRATION_SQLSERVER_CONNECTION=<source SQL Server connection string>
+MIGRATION_POSTGRES_CONNECTION=<target Supabase PostgreSQL connection string>
+```
+
+## 驗證與部署檢查
+
+```powershell
+dotnet build Proposal.slnx
+powershell -ExecutionPolicy Bypass -File Tools\CloudReadinessCheck.ps1
+powershell -ExecutionPolicy Bypass -File Tools\RunLocalSmoke.ps1 -Port 5226
+```
+
+Supabase schema 檢查：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools\SupabaseContractCheck.ps1
+```
+
+Supabase staging 搬移預設為 dry run，不會寫入資料：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools\RunSupabaseStagingMigration.ps1
+```
+
+確認 staging 環境與連線字串無誤後，才執行正式寫入：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools\RunSupabaseStagingMigration.ps1 -Apply -ConfirmStaging
+```
+
+## 資安原則
+
+- 不提交 `appsettings.json`、`appsettings.Development.json`、`.env`、log、報告快取或任何真實密鑰。
+- Supabase database password 與 `service_role` key 只能放在後端 secret manager。
+- 前端不得暴露 OpenRouter API key、資料庫連線字串或管理員設定。
+- 部署前請先跑 `Tools\CloudReadinessCheck.ps1`，它會檢查 secret scan、antiforgery、RLS schema、Docker/Render/Azure 基本設定。
+
+## 專案狀態
+
+目前已完成 ARAM AI 推薦、英雄/海克斯/裝備資料管理、Supabase schema 與部署檢查工具。正式上線前仍需要完成真實 Supabase staging migration、設定雲端 secret，以及使用 Render/Azure preview URL 跑完整 smoke test。
