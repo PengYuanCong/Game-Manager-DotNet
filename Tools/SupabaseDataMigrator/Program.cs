@@ -9,6 +9,11 @@ if (args.Contains("--test-password-migration", StringComparer.OrdinalIgnoreCase)
     return PasswordMigrationNormalizerTest.Run();
 }
 
+if (args.Contains("--test-augment-series-migration", StringComparer.OrdinalIgnoreCase))
+{
+    return AugmentSeriesMigrationNormalizerTest.Run();
+}
+
 var options = MigrationOptions.Parse(args);
 if (!options.IsValid)
 {
@@ -98,7 +103,11 @@ foreach (var spec in selectedTables)
     PrintPreflight(preflight);
 }
 
-var hasErrors = preflights.Any(preflight => preflight.HasErrors);
+var augmentSeriesAudit = await AuditAugmentSeriesAsync(source, selectedTables);
+PrintAugmentSeriesAudit(augmentSeriesAudit);
+
+var hasErrors = preflights.Any(preflight => preflight.HasErrors)
+    || augmentSeriesAudit.HasErrors;
 Console.WriteLine($"TOTAL_SOURCE_ROWS={totalRows}");
 
 if (!options.Apply)
@@ -119,6 +128,7 @@ if (hasErrors)
 await using var transaction = await target.BeginTransactionAsync();
 try
 {
+    var augmentSeriesDefinitionsEnsured = false;
     foreach (var preflight in preflights)
     {
         if (!preflight.SourceExists || preflight.SourceValidation is null)
@@ -127,10 +137,24 @@ try
             continue;
         }
 
+        if (!augmentSeriesDefinitionsEnsured
+            && preflight.Spec.Name is "lol_aram_augments" or "lol_aram_synergy_rules")
+        {
+            await EnsureAugmentSeriesDefinitionsAsync(target, transaction);
+            augmentSeriesDefinitionsEnsured = true;
+        }
+
         var copied = await CopyTableAsync(source, target, transaction, preflight.Spec, preflight.SourceValidation.ActiveColumns);
         if (preflight.Spec.HasIdentity)
         {
             await ResetSequenceAsync(target, transaction, preflight.Spec.TargetTable);
+        }
+
+        if (!augmentSeriesDefinitionsEnsured
+            && preflight.Spec.Name == "lol_aram_augment_series")
+        {
+            await EnsureAugmentSeriesDefinitionsAsync(target, transaction);
+            augmentSeriesDefinitionsEnsured = true;
         }
 
         var targetRowsAfter = await CountTargetRowsInTransactionAsync(target, transaction, preflight.Spec);
@@ -378,6 +402,112 @@ static async Task<PasswordMigrationAudit> AuditUserPasswordsAsync(SqlConnection 
     return new PasswordMigrationAudit(current, legacy, invalid);
 }
 
+static async Task<AugmentSeriesMigrationAudit> AuditAugmentSeriesAsync(
+    SqlConnection connection,
+    IReadOnlyList<TableSpec> selectedTables)
+{
+    var relevantSpecs = selectedTables
+        .Where(spec => spec.Name is "lol_aram_augment_series" or "lol_aram_augments" or "lol_aram_synergy_rules")
+        .ToList();
+    if (relevantSpecs.Count == 0)
+    {
+        return AugmentSeriesMigrationAudit.NotApplicable;
+    }
+
+    var canonicalSourceParents = new HashSet<string>(StringComparer.Ordinal);
+    var unknown = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var missingSecondaryTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var referencedRows = 0;
+    var multiSeriesRows = 0;
+
+    foreach (var spec in relevantSpecs)
+    {
+        if (!await SourceTableExistsAsync(connection, spec.SourceTable))
+        {
+            continue;
+        }
+
+        const string columnName = "SeriesKey";
+        var includeTags = spec.Name == "lol_aram_augments";
+        var selectedColumns = includeTags ? "[SeriesKey], [Tags]" : "[SeriesKey]";
+        await using var command = new SqlCommand(
+            $"select {selectedColumns} from dbo.[{spec.SourceTable}] where nullif(ltrim(rtrim([{columnName}])), N'') is not null;",
+            connection);
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var value = reader.GetString(0);
+            if (!AugmentSeriesMigrationNormalizer.TryNormalizeAll(value, out var normalized))
+            {
+                unknown.Add(value);
+                continue;
+            }
+
+            if (spec.Name == "lol_aram_augment_series")
+            {
+                foreach (var key in normalized)
+                {
+                    canonicalSourceParents.Add(key);
+                }
+            }
+            else
+            {
+                referencedRows++;
+                if (normalized.Count > 1)
+                {
+                    multiSeriesRows++;
+                    var tags = includeTags && !reader.IsDBNull(1) ? reader.GetString(1) : null;
+                    if (!AugmentSeriesMigrationNormalizer.SecondarySeriesArePreserved(value, tags))
+                    {
+                        missingSecondaryTags.Add(value);
+                    }
+                }
+            }
+        }
+    }
+
+    var definitionsToCreate = AugmentSeriesMigrationNormalizer.Definitions
+        .Count(definition => !canonicalSourceParents.Contains(definition.Key));
+    return new AugmentSeriesMigrationAudit(
+        Applicable: true,
+        ReferencedRows: referencedRows,
+        MultiSeriesRows: multiSeriesRows,
+        DefinitionsToCreate: definitionsToCreate,
+        UnknownValues: unknown.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToArray(),
+        MissingSecondaryTags: missingSecondaryTags.OrderBy(value => value, StringComparer.OrdinalIgnoreCase).ToArray());
+}
+
+static async Task EnsureAugmentSeriesDefinitionsAsync(
+    NpgsqlConnection connection,
+    NpgsqlTransaction transaction)
+{
+    const string sql = """
+        insert into public.lol_aram_augment_series
+            (series_key, series_name, description, set_bonus_text, tags, patch_version, notes)
+        values
+            (@series_key, @series_name, @description, @set_bonus_text, @tags, @patch_version, @notes)
+        on conflict (series_key) do nothing;
+        """;
+
+    var inserted = 0;
+    foreach (var definition in AugmentSeriesMigrationNormalizer.Definitions)
+    {
+        await using var command = new NpgsqlCommand(sql, connection, transaction);
+        command.Parameters.Add("@series_key", NpgsqlDbType.Varchar).Value = definition.Key;
+        command.Parameters.Add("@series_name", NpgsqlDbType.Varchar).Value = definition.Name;
+        command.Parameters.Add("@description", NpgsqlDbType.Varchar).Value = definition.Description;
+        command.Parameters.Add("@set_bonus_text", NpgsqlDbType.Varchar).Value = definition.SetBonusText;
+        command.Parameters.Add("@tags", NpgsqlDbType.Varchar).Value = definition.Tags;
+        command.Parameters.Add("@patch_version", NpgsqlDbType.Varchar).Value = "manual migration";
+        command.Parameters.Add("@notes", NpgsqlDbType.Varchar).Value =
+            "Canonical Traditional Chinese set definition inserted by the staging migrator.";
+        inserted += await command.ExecuteNonQueryAsync();
+    }
+
+    Console.WriteLine(
+        $"AUGMENT_SERIES_DEFINITIONS={AugmentSeriesMigrationNormalizer.Definitions.Count}; INSERTED={inserted}; STATUS=OK");
+}
+
 static async Task<int> CopyTableAsync(
     SqlConnection source,
     NpgsqlConnection target,
@@ -535,6 +665,34 @@ static void PrintPreflight(TablePreflight preflight)
     }
 }
 
+static void PrintAugmentSeriesAudit(AugmentSeriesMigrationAudit audit)
+{
+    if (!audit.Applicable)
+    {
+        return;
+    }
+
+    if (audit.HasErrors)
+    {
+        if (audit.UnknownValues.Count > 0)
+        {
+            Console.WriteLine(
+                $"AUGMENT_SERIES; STATUS=ERROR; REASON=unknown source values {string.Join(",", audit.UnknownValues)}");
+        }
+
+        if (audit.MissingSecondaryTags.Count > 0)
+        {
+            Console.WriteLine(
+                $"AUGMENT_SERIES; STATUS=ERROR; REASON=dual-series values missing secondary tags {string.Join(",", audit.MissingSecondaryTags)}");
+        }
+
+        return;
+    }
+
+    Console.WriteLine(
+        $"AUGMENT_SERIES; REFERENCED_ROWS={audit.ReferencedRows}; MULTI_SERIES_ROWS={audit.MultiSeriesRows}; CANONICAL_DEFINITIONS={AugmentSeriesMigrationNormalizer.Definitions.Count}; DEFINITIONS_TO_CREATE={audit.DefinitionsToCreate}; STATUS=PREFLIGHT_OK");
+}
+
 static string SanitizeErrorMessage(string message)
 {
     return message.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "unknown error";
@@ -558,6 +716,20 @@ sealed record TargetValidation(
     bool RlsEnabled);
 
 sealed record PasswordMigrationAudit(int Current, int Legacy, int Invalid);
+
+sealed record AugmentSeriesMigrationAudit(
+    bool Applicable,
+    int ReferencedRows,
+    int MultiSeriesRows,
+    int DefinitionsToCreate,
+    IReadOnlyList<string> UnknownValues,
+    IReadOnlyList<string> MissingSecondaryTags)
+{
+    public static AugmentSeriesMigrationAudit NotApplicable { get; } =
+        new(false, 0, 0, 0, Array.Empty<string>(), Array.Empty<string>());
+
+    public bool HasErrors => UnknownValues.Count > 0 || MissingSecondaryTags.Count > 0;
+}
 
 sealed record TablePreflight(
     TableSpec Spec,
@@ -777,7 +949,7 @@ static class TableSpecs
             new[]
             {
                 C("Id", "id", BigInt),
-                C("SeriesKey", "series_key", Text),
+                C("SeriesKey", "series_key", Text, AugmentSeriesMigrationNormalizer.NormalizeDbValue),
                 C("SeriesName", "series_name", Text),
                 O("Description", "description", Text),
                 O("SetBonusText", "set_bonus_text", Text),
@@ -801,7 +973,7 @@ static class TableSpecs
                 C("ModeName", "mode_name", Text),
                 C("Rarity", "rarity", Text),
                 O("Tier", "tier", Text),
-                O("SeriesKey", "series_key", Text),
+                O("SeriesKey", "series_key", Text, AugmentSeriesMigrationNormalizer.NormalizeDbValue),
                 C("EffectText", "effect_text", Text),
                 O("Tags", "tags", Text),
                 O("SynergyNotes", "synergy_notes", Text),
@@ -842,7 +1014,7 @@ static class TableSpecs
                 C("Id", "id", BigInt),
                 C("RuleName", "rule_name", Text),
                 O("BoostAugmentKey", "boost_augment_key", Text),
-                O("SeriesKey", "series_key", Text),
+                O("SeriesKey", "series_key", Text, AugmentSeriesMigrationNormalizer.NormalizeDbValue),
                 O("TriggerTags", "trigger_tags", Text),
                 O("ChampionTags", "champion_tags", Text),
                 O("ItemTags", "item_tags", Text),
@@ -865,9 +1037,13 @@ static class TableSpecs
         return new ColumnMap(source, target, type, ValueNormalizer: valueNormalizer);
     }
 
-    private static ColumnMap O(string source, string target, NpgsqlDbType type)
+    private static ColumnMap O(
+        string source,
+        string target,
+        NpgsqlDbType type,
+        Func<object, object>? valueNormalizer = null)
     {
-        return new ColumnMap(source, target, type, Required: false);
+        return new ColumnMap(source, target, type, Required: false, ValueNormalizer: valueNormalizer);
     }
 
     private static TableSpec WithId(string name, string source, string target, IReadOnlyList<ColumnMap> columns)

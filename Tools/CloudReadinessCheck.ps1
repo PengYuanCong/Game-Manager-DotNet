@@ -261,6 +261,7 @@ Require-File "Tools\SupabaseDataMigrator\SupabaseDataMigrator.csproj"
 Require-File "Tools\RunSupabaseStagingMigration.ps1"
 Require-File "Tools\TestSupabaseSchemaInitializationSafety.ps1"
 Require-File "Tools\TestSupabasePasswordMigration.ps1"
+Require-File "Tools\TestSupabaseAugmentSeriesMigration.ps1"
 Require-File "Tools\SupabaseContractCheck.ps1"
 Require-File "Tools\ArchitectureDependencyCheck.ps1"
 Require-File "Tools\AzurePreflightCheck.ps1"
@@ -302,6 +303,10 @@ Run-Command "Supabase schema initialization safety test" {
 
 Run-Command "Supabase password migration safety test" {
     powershell -ExecutionPolicy Bypass -File Tools\TestSupabasePasswordMigration.ps1
+}
+
+Run-Command "Supabase augment series migration safety test" {
+    powershell -ExecutionPolicy Bypass -File Tools\TestSupabaseAugmentSeriesMigration.ps1
 }
 
 Run-Command "Release publish" {

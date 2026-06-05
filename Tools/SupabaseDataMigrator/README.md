@@ -16,6 +16,13 @@ It is intentionally conservative:
 - Existing PBKDF2 password hashes are preserved. Non-empty legacy account
   passwords are upgraded to randomly salted PBKDF2 before they leave the
   migration process; password values are never logged.
+- ARAM augment series keys are normalized to nine canonical keys before copy.
+  Known Traditional Chinese aliases and the two existing dual-series values
+  are handled deterministically; unknown values stop the dry run.
+- Missing canonical augment-series parent rows are inserted inside the same
+  PostgreSQL transaction before augment rows are copied. A full migration from
+  the current SQL Server data therefore grows the series table from 2 source
+  rows to 9 target rows by design.
 - It logs table names and counts, not connection strings or secrets.
 - It should be used against staging before production.
 
@@ -56,7 +63,9 @@ Recommended order:
    editor.
 2. Dry-run this tool and inspect row counts, target row counts, missing source
    columns, target schema status, RLS status, and
-   `LEGACY_PASSWORDS_TO_UPGRADE`.
+   `LEGACY_PASSWORDS_TO_UPGRADE`. Also confirm the `AUGMENT_SERIES` preflight
+   reports no unknown values; `DEFINITIONS_TO_CREATE=7` is expected for the
+   current source database.
 3. Apply this tool to staging with `--apply --confirm-staging`.
 4. Run `database/supabase/0002_seed_aram_starter_data.sql` only when staging is
    intentionally empty/demo-like.
