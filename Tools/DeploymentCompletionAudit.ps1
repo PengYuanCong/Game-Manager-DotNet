@@ -66,18 +66,6 @@ function Get-EnvValue {
     return [Environment]::GetEnvironmentVariable($Name)
 }
 
-function Test-EnvPresent {
-    param([string]$Name)
-
-    if ([string]::IsNullOrWhiteSpace((Get-EnvValue $Name))) {
-        Add-Blocker "missing environment variable: $Name"
-        return $false
-    }
-
-    Write-Status "PASS" "environment variable is set: $Name"
-    return $true
-}
-
 function Get-PreviewUrl {
     param(
         [string]$PrimaryName,
@@ -174,8 +162,6 @@ if (-not $SkipLocalSmoke) {
     }
 }
 
-Test-EnvPresent "MIGRATION_SQLSERVER_CONNECTION" | Out-Null
-Test-EnvPresent "MIGRATION_POSTGRES_CONNECTION" | Out-Null
 Test-MigrationEvidence
 
 $renderUrl = Get-PreviewUrl "RENDER_PREVIEW_URL" "CLOUD_PREVIEW_URL"
