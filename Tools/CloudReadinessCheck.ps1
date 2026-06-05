@@ -79,6 +79,7 @@ function Test-RenderYaml {
     $text = [System.IO.File]::ReadAllText($renderPath)
     $requiredText = @(
         "runtime: docker",
+        "plan: free",
         "dockerfilePath: ./Dockerfile",
         "healthCheckPath: /healthz",
         "ASPNETCORE_ENVIRONMENT",

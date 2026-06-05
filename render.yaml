@@ -2,6 +2,7 @@ services:
   - type: web
     name: proposal-aram-assistant
     runtime: docker
+    plan: free
     dockerfilePath: ./Dockerfile
     healthCheckPath: /healthz
     envVars:
