@@ -228,7 +228,9 @@ function Test-MigratorSafety {
     $text = [System.IO.File]::ReadAllText($migratorPath)
     $markers = @(
         "--confirm-staging",
+        "--initialize-schema",
         "MIGRATION_CONFIRM_STAGING",
+        "InitializeSchemaAsync",
         "ValidateTargetSchemaAsync",
         "BeginTransactionAsync",
         "RollbackAsync",
@@ -257,6 +259,7 @@ Require-File "database\supabase\0001_schema.sql"
 Require-File "database\supabase\0002_seed_aram_starter_data.sql"
 Require-File "Tools\SupabaseDataMigrator\SupabaseDataMigrator.csproj"
 Require-File "Tools\RunSupabaseStagingMigration.ps1"
+Require-File "Tools\TestSupabaseSchemaInitializationSafety.ps1"
 Require-File "Tools\SupabaseContractCheck.ps1"
 Require-File "Tools\ArchitectureDependencyCheck.ps1"
 Require-File "Tools\AzurePreflightCheck.ps1"
@@ -290,6 +293,10 @@ Run-Command "Azure preflight check" {
 
 Run-Command "Supabase migrator build" {
     dotnet build Tools\SupabaseDataMigrator\SupabaseDataMigrator.csproj --nologo
+}
+
+Run-Command "Supabase schema initialization safety test" {
+    powershell -ExecutionPolicy Bypass -File Tools\TestSupabaseSchemaInitializationSafety.ps1
 }
 
 Run-Command "Release publish" {

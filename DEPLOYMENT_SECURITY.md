@@ -118,7 +118,9 @@ powershell -ExecutionPolicy Bypass -File Tools\DeploymentCompletionAudit.ps1 -Ru
 ## Supabase 移轉流程
 
 1. 備份 SQL Server `LOL`。
-2. 在 Supabase staging 執行 `database/supabase/0001_schema.sql`。
+2. 在 Supabase staging 執行
+   `Tools\RunSupabaseStagingMigration.ps1 -InitializeSchema -ConfirmStaging`，
+   或以 SQL Editor 手動執行 `database/supabase/0001_schema.sql`。
 3. dry-run `Tools\RunSupabaseStagingMigration.ps1` 確認資料筆數、target schema 與 RLS 狀態。
 4. 只對 staging 執行 `Tools\RunSupabaseStagingMigration.ps1 -Apply -ConfirmStaging`。
 5. 只有空資料庫 demo 才執行 `0002_seed_aram_starter_data.sql`。

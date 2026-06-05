@@ -78,6 +78,13 @@ Supabase staging 搬移預設為 dry run，不會寫入資料：
 powershell -ExecutionPolicy Bypass -File Tools\RunSupabaseStagingMigration.ps1
 ```
 
+如果 dry run 顯示所有 `public.*` 資料表都不存在，先對 staging
+初始化 schema；完成後會自動接續 dry run：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools\RunSupabaseStagingMigration.ps1 -InitializeSchema -ConfirmStaging
+```
+
 確認 staging 環境與連線字串無誤後，才執行正式寫入：
 
 ```powershell

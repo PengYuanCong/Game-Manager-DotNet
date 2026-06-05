@@ -11,6 +11,18 @@ if (!options.IsValid)
     return 2;
 }
 
+if (options.InitializeSchema)
+{
+    if (!options.ConfirmStaging)
+    {
+        Console.WriteLine("ERROR=Schema initialization requires --confirm-staging or MIGRATION_CONFIRM_STAGING=true.");
+        Console.WriteLine("RESULT=No schema changes were written.");
+        return 2;
+    }
+
+    return await InitializeSchemaAsync(options);
+}
+
 if (options.Apply && !options.ConfirmStaging)
 {
     Console.WriteLine("ERROR=Apply mode requires --confirm-staging or MIGRATION_CONFIRM_STAGING=true.");
@@ -124,6 +136,62 @@ catch (Exception ex) when (ex is DbException or InvalidOperationException)
     Console.WriteLine($"ERROR_TYPE={ex.GetType().Name}");
     Console.WriteLine($"ERROR_MESSAGE={SanitizeErrorMessage(ex.Message)}");
     return 1;
+}
+
+static async Task<int> InitializeSchemaAsync(MigrationOptions options)
+{
+    var schemaPath = Path.GetFullPath(
+        Path.Combine(Directory.GetCurrentDirectory(), "database", "supabase", "0001_schema.sql"));
+
+    if (!File.Exists(schemaPath))
+    {
+        Console.WriteLine("ERROR=Schema file database/supabase/0001_schema.sql was not found.");
+        Console.WriteLine("RESULT=No schema changes were written.");
+        return 2;
+    }
+
+    var schemaSql = await File.ReadAllTextAsync(schemaPath);
+    if (string.IsNullOrWhiteSpace(schemaSql))
+    {
+        Console.WriteLine("ERROR=Schema file is empty.");
+        Console.WriteLine("RESULT=No schema changes were written.");
+        return 2;
+    }
+
+    Console.WriteLine("MODE=INITIALIZE_SCHEMA");
+    Console.WriteLine("TARGET=PostgreSQL/Supabase staging");
+
+    await using var target = new NpgsqlConnection(options.TargetConnectionString);
+    try
+    {
+        await target.OpenAsync();
+        await using var command = new NpgsqlCommand(schemaSql, target);
+        await command.ExecuteNonQueryAsync();
+
+        foreach (var spec in TableSpecs.All)
+        {
+            var validation = await ValidateTargetSchemaAsync(target, spec);
+            if (!validation.TableExists
+                || validation.MissingColumns.Count > 0
+                || !validation.RlsEnabled)
+            {
+                Console.WriteLine($"ERROR=Schema verification failed for public.{spec.TargetTable}.");
+                Console.WriteLine("RESULT=Schema initialization did not pass verification.");
+                return 1;
+            }
+        }
+
+        Console.WriteLine($"TABLES_VERIFIED={TableSpecs.All.Count}");
+        Console.WriteLine("RESULT=Supabase staging schema initialized and verified.");
+        return 0;
+    }
+    catch (Exception ex) when (ex is DbException or InvalidOperationException)
+    {
+        Console.WriteLine("RESULT=Schema initialization failed. PostgreSQL rolled back the schema transaction.");
+        Console.WriteLine($"ERROR_TYPE={ex.GetType().Name}");
+        Console.WriteLine($"ERROR_MESSAGE={SanitizeErrorMessage(ex.Message)}");
+        return 1;
+    }
 }
 
 static async Task<bool> SourceTableExistsAsync(SqlConnection connection, string tableName)
@@ -753,13 +821,15 @@ sealed class MigrationOptions
 
     public bool Apply { get; private init; }
 
+    public bool InitializeSchema { get; private init; }
+
     public bool ConfirmStaging { get; private init; }
 
     public HashSet<string> Tables { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     public bool IsValid =>
-        !string.IsNullOrWhiteSpace(SourceConnectionString)
-        && !string.IsNullOrWhiteSpace(TargetConnectionString);
+        !string.IsNullOrWhiteSpace(TargetConnectionString)
+        && (InitializeSchema || !string.IsNullOrWhiteSpace(SourceConnectionString));
 
     public static MigrationOptions Parse(string[] args)
     {
@@ -768,6 +838,7 @@ sealed class MigrationOptions
             SourceConnectionString = Environment.GetEnvironmentVariable("MIGRATION_SQLSERVER_CONNECTION") ?? string.Empty,
             TargetConnectionString = Environment.GetEnvironmentVariable("MIGRATION_POSTGRES_CONNECTION") ?? string.Empty,
             Apply = args.Contains("--apply", StringComparer.OrdinalIgnoreCase),
+            InitializeSchema = args.Contains("--initialize-schema", StringComparer.OrdinalIgnoreCase),
             ConfirmStaging = IsTruthy(Environment.GetEnvironmentVariable("MIGRATION_CONFIRM_STAGING"))
                 || args.Contains("--confirm-staging", StringComparer.OrdinalIgnoreCase)
         };
@@ -799,6 +870,7 @@ sealed class MigrationOptions
         Console.WriteLine("""
             Usage:
               dotnet run --project Tools/SupabaseDataMigrator/SupabaseDataMigrator.csproj -- --source "<sqlserver>" --target "<postgres>" [--apply --confirm-staging] [--tables users,equipments]
+              dotnet run --project Tools/SupabaseDataMigrator/SupabaseDataMigrator.csproj -- --target "<postgres>" --initialize-schema --confirm-staging
 
             Environment alternatives:
               MIGRATION_SQLSERVER_CONNECTION
@@ -807,6 +879,7 @@ sealed class MigrationOptions
             Safety:
               Without --apply this tool only counts source rows.
               Apply mode requires --confirm-staging or MIGRATION_CONFIRM_STAGING=true.
+              Schema initialization requires --initialize-schema and --confirm-staging.
               Apply mode writes inside a PostgreSQL transaction and rolls back on copy failure.
               Use only against a Supabase staging database first.
             """);
@@ -819,6 +892,7 @@ sealed class MigrationOptions
             SourceConnectionString = value,
             TargetConnectionString = TargetConnectionString,
             Apply = Apply,
+            InitializeSchema = InitializeSchema,
             ConfirmStaging = ConfirmStaging,
             Tables = { }
         }.CopyTablesFrom(this);
@@ -831,6 +905,7 @@ sealed class MigrationOptions
             SourceConnectionString = SourceConnectionString,
             TargetConnectionString = value,
             Apply = Apply,
+            InitializeSchema = InitializeSchema,
             ConfirmStaging = ConfirmStaging,
             Tables = { }
         }.CopyTablesFrom(this);

@@ -7,7 +7,10 @@ They do not switch the running app away from SQL Server by themselves.
 
 1. Back up SQL Server `LOL`.
 2. Create a Supabase staging project.
-3. Run `0001_schema.sql` in the Supabase SQL editor.
+3. Initialize the staging schema with
+   `Tools\RunSupabaseStagingMigration.ps1 -InitializeSchema -ConfirmStaging`.
+   This executes `0001_schema.sql`, verifies all expected tables and RLS, and
+   continues with a dry run. The Supabase SQL editor remains a manual fallback.
 4. Run `Tools\RunSupabaseStagingMigration.ps1` in dry-run mode and confirm
    source row counts, target row counts, target schema, and RLS status look
    reasonable.

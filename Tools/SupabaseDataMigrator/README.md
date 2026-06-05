@@ -24,6 +24,15 @@ $env:MIGRATION_POSTGRES_CONNECTION='Host=...;Database=postgres;Username=postgres
 powershell -ExecutionPolicy Bypass -File Tools\RunSupabaseStagingMigration.ps1
 ```
 
+If the dry run reports that every `public.*` target table is missing, initialize
+the staging schema once. This command requires explicit confirmation, executes
+the checked-in `database/supabase/0001_schema.sql`, verifies every table and
+RLS setting, then continues with the normal dry run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools\RunSupabaseStagingMigration.ps1 -InitializeSchema -ConfirmStaging
+```
+
 ## Apply To Staging
 
 ```powershell
@@ -38,7 +47,10 @@ powershell -ExecutionPolicy Bypass -File Tools\RunSupabaseStagingMigration.ps1 -
 
 Recommended order:
 
-1. Run `database/supabase/0001_schema.sql`.
+1. Run
+   `Tools\RunSupabaseStagingMigration.ps1 -InitializeSchema -ConfirmStaging`
+   once, or execute `database/supabase/0001_schema.sql` in the Supabase SQL
+   editor.
 2. Dry-run this tool and inspect row counts, target row counts, missing source
    columns, target schema status, and RLS status.
 3. Apply this tool to staging with `--apply --confirm-staging`.

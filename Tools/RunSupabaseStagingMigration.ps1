@@ -1,6 +1,8 @@
 param(
     [switch]$Apply,
 
+    [switch]$InitializeSchema,
+
     [switch]$ConfirmStaging,
 
     [string]$Tables = "",
@@ -208,8 +210,14 @@ function Write-MigrationReport {
 Set-Location $repoRoot
 
 Write-Host "Supabase staging migration runner"
-Write-Host "Mode: $(if ($Apply) { 'APPLY' } else { 'DRY_RUN' })"
+Write-Host "Mode: $(if ($InitializeSchema) { 'INITIALIZE_SCHEMA + ' } else { '' })$(if ($Apply) { 'APPLY' } else { 'DRY_RUN' })"
 Write-Host ""
+
+if ($InitializeSchema -and -not $ConfirmStaging -and -not (Get-EnvIsTruthy "MIGRATION_CONFIRM_STAGING")) {
+    Write-Status "FAIL" "schema initialization requires -ConfirmStaging or MIGRATION_CONFIRM_STAGING=true"
+    Write-Host "RESULT=No schema changes were written."
+    exit 2
+}
 
 if ($Apply -and -not $ConfirmStaging -and -not (Get-EnvIsTruthy "MIGRATION_CONFIRM_STAGING")) {
     Write-Status "FAIL" "apply mode requires -ConfirmStaging or MIGRATION_CONFIRM_STAGING=true"
@@ -238,6 +246,18 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
+if ($InitializeSchema) {
+    Write-Status "RUN" "Supabase staging schema initialization"
+    & dotnet "run" "--no-build" "--project" $migratorProject "--" "--initialize-schema" "--confirm-staging"
+    $schemaExitCode = $LASTEXITCODE
+    if ($schemaExitCode -ne 0) {
+        Write-Status "FAIL" "Supabase staging schema initialization failed with exit code $schemaExitCode"
+        exit $schemaExitCode
+    }
+
+    Write-Status "PASS" "Supabase staging schema initialized; continuing with migration preflight"
+}
+
 $migratorArgs = New-Object System.Collections.Generic.List[string]
 if ($Apply) {
     $migratorArgs.Add("--apply") | Out-Null
@@ -253,7 +273,7 @@ if (-not [string]::IsNullOrWhiteSpace($Tables)) {
 
 Write-Status "RUN" "Supabase data migrator"
 $migratorArgArray = @($migratorArgs.ToArray())
-& dotnet "run" "--project" $migratorProject "--" @migratorArgArray
+& dotnet "run" "--no-build" "--project" $migratorProject "--" @migratorArgArray
 $exitCode = $LASTEXITCODE
 
 if ($exitCode -ne 0) {
