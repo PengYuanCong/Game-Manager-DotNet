@@ -12,8 +12,9 @@ They do not switch the running app away from SQL Server by themselves.
    This executes `0001_schema.sql`, verifies all expected tables and RLS, and
    continues with a dry run. The Supabase SQL editor remains a manual fallback.
 4. Run `Tools\RunSupabaseStagingMigration.ps1` in dry-run mode and confirm
-   source row counts, target row counts, target schema, and RLS status look
-   reasonable.
+   source row counts, target row counts, target schema, RLS status, and the
+   legacy-password upgrade count look reasonable. Legacy account passwords are
+   converted to salted PBKDF2 during copy and are never printed.
 5. Run `Tools\RunSupabaseStagingMigration.ps1 -Apply -ConfirmStaging` against
    staging only. Apply mode writes inside a PostgreSQL transaction and rolls
    back on copy failure.

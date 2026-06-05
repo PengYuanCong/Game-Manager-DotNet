@@ -4,6 +4,11 @@ using Microsoft.Data.SqlClient;
 using Npgsql;
 using NpgsqlTypes;
 
+if (args.Contains("--test-password-migration", StringComparer.OrdinalIgnoreCase))
+{
+    return PasswordMigrationNormalizerTest.Run();
+}
+
 var options = MigrationOptions.Parse(args);
 if (!options.IsValid)
 {
@@ -59,6 +64,7 @@ foreach (var spec in selectedTables)
     var targetValidation = await ValidateTargetSchemaAsync(target, spec);
     var sourceExists = await SourceTableExistsAsync(source, spec.SourceTable);
     ColumnValidation? sourceValidation = null;
+    PasswordMigrationAudit? passwordAudit = null;
     var sourceRows = 0;
     int? targetRows = null;
 
@@ -71,6 +77,12 @@ foreach (var spec in selectedTables)
     {
         sourceValidation = await ValidateColumnsAsync(source, spec);
         sourceRows = await CountSourceRowsAsync(source, spec);
+        if (spec.Name == "users"
+            && !sourceValidation.MissingRequired.Contains("Password", StringComparer.OrdinalIgnoreCase))
+        {
+            passwordAudit = await AuditUserPasswordsAsync(source);
+        }
+
         totalRows += sourceRows;
     }
 
@@ -78,6 +90,7 @@ foreach (var spec in selectedTables)
         spec,
         sourceExists,
         sourceValidation,
+        passwordAudit,
         targetValidation,
         sourceRows,
         targetRows);
@@ -336,6 +349,35 @@ static async Task<ColumnValidation> ValidateColumnsAsync(SqlConnection connectio
     return new ColumnValidation(active, missingRequired, missingOptional);
 }
 
+static async Task<PasswordMigrationAudit> AuditUserPasswordsAsync(SqlConnection connection)
+{
+    const string sql = "select [Password] from dbo.Users;";
+    await using var command = new SqlCommand(sql, connection);
+    await using var reader = await command.ExecuteReaderAsync();
+
+    var current = 0;
+    var legacy = 0;
+    var invalid = 0;
+    while (await reader.ReadAsync())
+    {
+        var storedCredential = reader.IsDBNull(0) ? null : reader.GetString(0);
+        switch (PasswordMigrationNormalizer.Classify(storedCredential))
+        {
+            case PasswordMigrationKind.Current:
+                current++;
+                break;
+            case PasswordMigrationKind.Legacy:
+                legacy++;
+                break;
+            default:
+                invalid++;
+                break;
+        }
+    }
+
+    return new PasswordMigrationAudit(current, legacy, invalid);
+}
+
 static async Task<int> CopyTableAsync(
     SqlConnection source,
     NpgsqlConnection target,
@@ -371,6 +413,11 @@ static async Task<int> CopyTableAsync(
 
 static object NormalizeValue(object value, ColumnMap column)
 {
+    if (column.ValueNormalizer is not null)
+    {
+        return column.ValueNormalizer(value);
+    }
+
     if (value == DBNull.Value)
     {
         return DBNull.Value;
@@ -470,6 +517,17 @@ static void PrintPreflight(TablePreflight preflight)
             $"TABLE={spec.Name}; OPTIONAL_COLUMNS_OMITTED={string.Join(",", preflight.SourceValidation.MissingOptional)}");
     }
 
+    if (preflight.PasswordAudit is not null)
+    {
+        Console.WriteLine(
+            $"TABLE={spec.Name}; LEGACY_PASSWORDS_TO_UPGRADE={preflight.PasswordAudit.Legacy}");
+        if (preflight.PasswordAudit.Invalid > 0)
+        {
+            Console.WriteLine(
+                $"TABLE={spec.Name}; STATUS=ERROR; REASON={preflight.PasswordAudit.Invalid} empty or malformed passwords cannot be migrated");
+        }
+    }
+
     if (!preflight.HasErrors)
     {
         Console.WriteLine(
@@ -482,7 +540,12 @@ static string SanitizeErrorMessage(string message)
     return message.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "unknown error";
 }
 
-sealed record ColumnMap(string Source, string Target, NpgsqlDbType Type, bool Required = true);
+sealed record ColumnMap(
+    string Source,
+    string Target,
+    NpgsqlDbType Type,
+    bool Required = true,
+    Func<object, object>? ValueNormalizer = null);
 
 sealed record ColumnValidation(
     IReadOnlyList<ColumnMap> ActiveColumns,
@@ -494,10 +557,13 @@ sealed record TargetValidation(
     IReadOnlyList<string> MissingColumns,
     bool RlsEnabled);
 
+sealed record PasswordMigrationAudit(int Current, int Legacy, int Invalid);
+
 sealed record TablePreflight(
     TableSpec Spec,
     bool SourceExists,
     ColumnValidation? SourceValidation,
+    PasswordMigrationAudit? PasswordAudit,
     TargetValidation TargetValidation,
     int SourceRows,
     int? TargetRows)
@@ -506,7 +572,8 @@ sealed record TablePreflight(
         !TargetValidation.TableExists
         || TargetValidation.MissingColumns.Count > 0
         || !TargetValidation.RlsEnabled
-        || SourceValidation?.MissingRequired.Count > 0;
+        || SourceValidation?.MissingRequired.Count > 0
+        || PasswordAudit?.Invalid > 0;
 }
 
 sealed record TableSpec(
@@ -540,7 +607,7 @@ static class TableSpecs
             Columns: new[]
             {
                 C("Username", "username", Text),
-                C("Password", "password_hash", Text)
+                C("Password", "password_hash", Text, NormalizePassword)
             },
             UpdateExclusions: new HashSet<string>()),
 
@@ -789,9 +856,13 @@ static class TableSpecs
             })
     };
 
-    private static ColumnMap C(string source, string target, NpgsqlDbType type)
+    private static ColumnMap C(
+        string source,
+        string target,
+        NpgsqlDbType type,
+        Func<object, object>? valueNormalizer = null)
     {
-        return new ColumnMap(source, target, type);
+        return new ColumnMap(source, target, type, ValueNormalizer: valueNormalizer);
     }
 
     private static ColumnMap O(string source, string target, NpgsqlDbType type)
@@ -810,6 +881,12 @@ static class TableSpecs
             HasIdentity: true,
             columns,
             new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "id", "created_at" });
+    }
+
+    private static object NormalizePassword(object value)
+    {
+        var storedCredential = value == DBNull.Value ? null : Convert.ToString(value);
+        return PasswordMigrationNormalizer.Normalize(storedCredential, out _);
     }
 }
 

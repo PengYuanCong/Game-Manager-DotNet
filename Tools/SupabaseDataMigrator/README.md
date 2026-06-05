@@ -13,6 +13,9 @@ It is intentionally conservative:
   failure.
 - Dry-run and apply both verify that the target Supabase schema exists, has the
   mapped columns, and has RLS enabled before writing.
+- Existing PBKDF2 password hashes are preserved. Non-empty legacy account
+  passwords are upgraded to randomly salted PBKDF2 before they leave the
+  migration process; password values are never logged.
 - It logs table names and counts, not connection strings or secrets.
 - It should be used against staging before production.
 
@@ -52,7 +55,8 @@ Recommended order:
    once, or execute `database/supabase/0001_schema.sql` in the Supabase SQL
    editor.
 2. Dry-run this tool and inspect row counts, target row counts, missing source
-   columns, target schema status, and RLS status.
+   columns, target schema status, RLS status, and
+   `LEGACY_PASSWORDS_TO_UPGRADE`.
 3. Apply this tool to staging with `--apply --confirm-staging`.
 4. Run `database/supabase/0002_seed_aram_starter_data.sql` only when staging is
    intentionally empty/demo-like.
