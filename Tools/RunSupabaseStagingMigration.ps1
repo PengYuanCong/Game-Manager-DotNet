@@ -53,6 +53,126 @@ function Assert-RequiredEnvironment {
     }
 }
 
+function Get-PostgresConnectionMetadata {
+    param([string]$ConnectionString)
+
+    if ($ConnectionString -match "^(postgres|postgresql)://") {
+        try {
+            $uri = [Uri]$ConnectionString
+            $userInfo = $uri.UserInfo -split ":", 2
+
+            return [ordered]@{
+                Host = $uri.Host
+                Port = $uri.Port
+                Username = if ($userInfo.Count -gt 0) { [Uri]::UnescapeDataString($userInfo[0]) } else { "" }
+                PasswordPresent = $userInfo.Count -gt 1 -and
+                    -not [string]::IsNullOrWhiteSpace([Uri]::UnescapeDataString($userInfo[1]))
+                PasswordIsPlaceholder = $userInfo.Count -gt 1 -and
+                    [Uri]::UnescapeDataString($userInfo[1]) -match "YOUR-PASSWORD|你的.*密碼"
+            }
+        } catch {
+            throw "PostgreSQL connection URI format is invalid."
+        }
+    }
+
+    function Get-ConnectionValue {
+        param(
+            [string[]]$Keys,
+            [string]$DefaultValue = ""
+        )
+
+        foreach ($key in $Keys) {
+            $escapedKey = [Regex]::Escape($key)
+            $match = [Regex]::Match(
+                $ConnectionString,
+                "(?i)(?:^|;)\s*$escapedKey\s*=\s*(?:""(?<quoted>[^""]*)""|'(?<single>[^']*)'|(?<plain>[^;]*))"
+            )
+            if ($match.Success) {
+                foreach ($groupName in @("quoted", "single", "plain")) {
+                    if ($match.Groups[$groupName].Success) {
+                        return $match.Groups[$groupName].Value.Trim()
+                    }
+                }
+            }
+        }
+
+        return $DefaultValue
+    }
+
+    if ($ConnectionString -notmatch "=") {
+        throw "PostgreSQL connection string format is invalid."
+    }
+
+    $postgresHost = Get-ConnectionValue @("Host", "Server")
+    $port = Get-ConnectionValue @("Port") "5432"
+    $username = Get-ConnectionValue @("Username", "User ID", "UserID")
+    $credentialSecret = Get-ConnectionValue @("Password", "Pwd")
+
+    return [ordered]@{
+        Host = $postgresHost
+        Port = $port
+        Username = $username
+        PasswordPresent = -not [string]::IsNullOrWhiteSpace($credentialSecret)
+        PasswordIsPlaceholder = $credentialSecret -match "YOUR-PASSWORD|你的.*密碼"
+    }
+}
+
+function Assert-PostgresConnectionPreflight {
+    $connectionString = [Environment]::GetEnvironmentVariable("MIGRATION_POSTGRES_CONNECTION")
+
+    try {
+        $metadata = Get-PostgresConnectionMetadata $connectionString
+    } catch {
+        Write-Status "FAIL" $_.Exception.Message
+        Write-Host "RESULT=No data was written."
+        exit 2
+    }
+
+    if ([string]::IsNullOrWhiteSpace($metadata.Host)) {
+        Write-Status "FAIL" "PostgreSQL host is missing from MIGRATION_POSTGRES_CONNECTION."
+        Write-Host "RESULT=No data was written."
+        exit 2
+    }
+
+    if ($metadata.Host -match "YOUR|你的|example|<|>|\[|\]") {
+        Write-Status "FAIL" "PostgreSQL host is still a placeholder: $($metadata.Host)"
+        Write-Host "Use the exact Host shown by Supabase Connect > Session pooler."
+        Write-Host "RESULT=No data was written."
+        exit 2
+    }
+
+    if ([string]::IsNullOrWhiteSpace($metadata.Username)) {
+        Write-Status "FAIL" "PostgreSQL username is missing from MIGRATION_POSTGRES_CONNECTION."
+        Write-Host "RESULT=No data was written."
+        exit 2
+    }
+
+    if (-not $metadata.PasswordPresent -or $metadata.PasswordIsPlaceholder) {
+        Write-Status "FAIL" "PostgreSQL database password is missing or still uses [YOUR-PASSWORD]."
+        Write-Host "RESULT=No data was written."
+        exit 2
+    }
+
+    try {
+        $addresses = [System.Net.Dns]::GetHostAddresses($metadata.Host)
+        if ($addresses.Count -eq 0) {
+            throw "No DNS addresses returned."
+        }
+
+        $addressFamilies = @(
+            $addresses |
+                ForEach-Object { $_.AddressFamily.ToString() } |
+                Sort-Object -Unique
+        )
+        Write-Status "PASS" "PostgreSQL host resolved: $($metadata.Host):$($metadata.Port) [$($addressFamilies -join ', ')]"
+    } catch {
+        Write-Status "FAIL" "PostgreSQL host could not be resolved: $($metadata.Host)"
+        Write-Host "Copy the exact Session pooler Host from Supabase Connect; do not use example text."
+        Write-Host "RESULT=No data was written."
+        exit 2
+    }
+}
+
 function Write-MigrationReport {
     param(
         [string]$Status,
@@ -98,6 +218,7 @@ if ($Apply -and -not $ConfirmStaging -and -not (Get-EnvIsTruthy "MIGRATION_CONFI
 }
 
 Assert-RequiredEnvironment
+Assert-PostgresConnectionPreflight
 
 if (-not $SkipContractCheck) {
     Write-Status "RUN" "Supabase schema contract check"
