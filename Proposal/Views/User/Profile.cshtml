@@ -1,99 +1,527 @@
-﻿@model IEnumerable<Proposal.Models.CalculationHistory>
-
-
+@model Proposal.Models.UserProfileViewModel
 
 @{
-    ViewData["Title"] = "會員紀錄";
+    ViewData["Title"] = "個人資料";
+
+    static string CategoryClass(string category)
+    {
+        return category switch
+        {
+            "ai" => "activity-ai",
+            "adopt" => "activity-adopt",
+            "favorite" => "activity-favorite",
+            "loadout" => "activity-loadout",
+            "calculator" => "activity-calculator",
+            "profile" => "activity-profile",
+            _ => "activity-default"
+        };
+    }
+
+    static string CategoryIcon(string category)
+    {
+        return category switch
+        {
+            "ai" => "bi-stars",
+            "adopt" => "bi-patch-check-fill",
+            "favorite" => "bi-bookmark-star",
+            "loadout" => "bi-box-seam",
+            "calculator" => "bi-calculator",
+            "profile" => "bi-person-circle",
+            _ => "bi-clock-history"
+        };
+    }
+
+    static string CategoryLabel(string category)
+    {
+        return category switch
+        {
+            "ai" => "AI 推薦",
+            "adopt" => "採納推薦",
+            "favorite" => "推薦收藏",
+            "loadout" => "裝備組合",
+            "calculator" => "公式計算",
+            "profile" => "個人資料",
+            _ => "系統紀錄"
+        };
+    }
+
+    static string AvatarFileName(string? username)
+    {
+        var safeName = new string((username ?? "anonymous")
+            .Where(character => char.IsAsciiLetterOrDigit(character) || character is '_' or '-' or '.')
+            .ToArray());
+
+        return $"{(string.IsNullOrWhiteSpace(safeName) ? "anonymous" : safeName)}.jpg";
+    }
 }
 
-
-<div class="col-md-4 mb-4">
-    <div class="card bg-dark border-secondary shadow h-100">
-        <div class="card-body text-center py-4">
-                    
-            <img src="/avatars/@(ViewBag.Username).jpg?v=@DateTime.Now.Ticks"
+<div class="profile-page container-fluid px-4">
+    <div class="profile-grid">
+        <aside class="profile-card">
+            <img src="/avatars/@AvatarFileName(Model.Username)?v=@DateTime.Now.Ticks"
                  onerror="this.src='https://github.com/mdo.png'"
-                 class="rounded-circle border border-secondary shadow-sm mb-3"
-                 width="150" height="150" style="object-fit: cover;">
-                    
-            <h3 class="mt-2 text-white fw-bold">@ViewBag.Username</h3>
-            <p class="text-success"><i class="bi bi-check-circle-fill me-1"></i>已驗證會員</p>
-                    
-            <hr class="border-secondary">
-                    
-            <form asp-action="UploadAvatar" method="post" enctype="multipart/form-data" class="mt-3">
-                <div class="mb-2">
-                    <input class="form-control form-control-sm text-bg-dark border-secondary" type="file" name="avatarFile" accept="image/*" required>
+                 class="profile-avatar"
+                 alt="@Model.Username 的頭像">
+
+            <h2>@Model.Username</h2>
+            <p><i class="bi bi-check-circle-fill me-1"></i>已登入</p>
+            <span class="db-chip">@Model.DbInfo</span>
+
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger py-2 px-3 mt-3 mb-0 text-start">
+                    @TempData["Error"]
                 </div>
-                <button type="submit" class="btn btn-sm btn-outline-info w-100">
-                    <i class="bi bi-cloud-upload me-1"></i> 上傳新大頭貼
+            }
+
+            <form asp-action="UploadAvatar" method="post" enctype="multipart/form-data" class="avatar-form">
+                <input class="form-control form-control-sm text-bg-dark border-secondary" type="file" name="avatarFile" accept=".jpg,.jpeg,image/jpeg" required>
+                <button type="submit" class="btn btn-outline-info w-100">
+                    <i class="bi bi-cloud-upload me-1"></i>更新頭像
                 </button>
             </form>
+        </aside>
 
-        </div>
-    </div>
-</div>
+        <main class="profile-main">
+            <section class="profile-panel">
+                <div class="panel-heading">
+                    <div>
+                        <div class="eyebrow">Recent Activity</div>
+                        <h3>最近動態</h3>
+                    </div>
+                    <span>保留最新 5 筆</span>
+                </div>
 
-<div class="card bg-dark text-white border-secondary shadow">
-    <div class="card-header border-secondary bg-opacity-25 bg-secondary">
-        <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>最近計算紀錄</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-dark table-hover mb-0">
-                <thead>
-                    <tr class="text-info">
-                        <th>時間</th>
-                        <th>公式</th>
-                        <th>輸入數值</th>
-                        <th>計算結果</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (Model != null && Model.Any())
-                    {
-                        @foreach (var item in Model)
+                @if (Model.RecentActivities.Any())
+                {
+                    <div class="activity-list">
+                        @foreach (var item in Model.RecentActivities)
                         {
-                            // 💡 幫公式加上專屬顏色 (利用 Bootstrap 的 badge class)
-                            string badgeColor = "bg-secondary"; // 預設顏色
-
-                            if (item.FormulaType != null)
-                            {
-                                if (item.FormulaType.Contains("CP值"))
-                                {
-                                    badgeColor = "bg-warning text-dark"; // CP值用黃色
-                                }
-                                else if (item.FormulaType.Contains("減傷"))
-                                {
-                                    badgeColor = "bg-info text-dark";    // 減傷用藍色
-                                }
-                                else if (item.FormulaType.Contains("EHP"))
-                                {
-                                    badgeColor = "bg-danger text-white"; // EHP用紅色
-                                }
-                            }
-
-                            <tr>
-                                <td class="small text-secondary">@item.CreatedAt.ToString("yyyy/MM/dd HH:mm")</td>
-                                <td><span class="badge @badgeColor">@item.FormulaType</span></td>
-                                <td class="small">@item.InputDetails</td>
-                                <td class="fw-bold text-success">@item.ResultContent</td>
-                            </tr>
+                            <article class="activity-item @CategoryClass(item.Category)">
+                                <div class="activity-icon">
+                                    <i class="bi @CategoryIcon(item.Category)"></i>
+                                </div>
+                                <div>
+                                    <div class="activity-meta">
+                                        <span>@CategoryLabel(item.Category)</span>
+                                        <time>@item.CreatedAt.ToLocalTime().ToString("MM/dd HH:mm")</time>
+                                    </div>
+                                    <h4>@item.Title</h4>
+                                    <p>@item.Detail</p>
+                                    @if (!string.IsNullOrWhiteSpace(item.LinkUrl))
+                                    {
+                                        <a href="@item.LinkUrl">前往查看 <i class="bi bi-arrow-right-short"></i></a>
+                                    }
+                                </div>
+                            </article>
                         }
-                    }
-                    else
-                    {
-                        <tr>
-                            <td colspan="4" class="text-center text-secondary py-4">
-                                <i class="bi bi-inbox fs-4 d-block mb-2"></i>
-                                目前還沒有任何計算紀錄喔！
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <i class="bi bi-clock-history"></i>
+                        <p>還沒有最近動態。儲存裝備組合、產生 AI 推薦或使用公式計算後會出現在這裡。</p>
+                    </div>
+                }
+            </section>
+
+            <section class="profile-panel">
+                <div class="panel-heading">
+                    <div>
+                        <div class="eyebrow">AI Memory</div>
+                        <h3>AI 推薦收藏</h3>
+                    </div>
+                    <span>最多保留 20 筆，顯示最新 6 筆</span>
+                </div>
+
+                @if (Model.RecommendationFavorites.Any())
+                {
+                    <div class="favorite-grid">
+                        @foreach (var item in Model.RecommendationFavorites)
+                        {
+                            <article class="favorite-card">
+                                <div class="favorite-card-head">
+                                    <div>
+                                        <strong>@item.Title</strong>
+                                        <time>@item.UpdatedAt.ToLocalTime().ToString("MM/dd HH:mm")</time>
+                                        @if (item.AdoptedCount > 0)
+                                        {
+                                            <span class="adopted-chip">
+                                                <i class="bi bi-patch-check-fill me-1"></i>已採納 @item.AdoptedCount 次
+                                            </span>
+                                        }
+                                    </div>
+                                    <a asp-controller="AiRecommendation"
+                                       asp-action="Index"
+                                       asp-route-favoriteId="@item.Id"
+                                       class="btn btn-sm btn-outline-info">
+                                        <i class="bi bi-arrow-repeat me-1"></i>帶入
+                                    </a>
+                                </div>
+                                <p>@item.Summary</p>
+                                <div class="favorite-meta">
+                                    @if (!string.IsNullOrWhiteSpace(item.Augment))
+                                    {
+                                        <span><i class="bi bi-gem me-1"></i>@item.Augment</span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(item.RecommendedItems))
+                                    {
+                                        <span><i class="bi bi-bag-check me-1"></i>@item.RecommendedItems</span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(item.RecommendedAugments))
+                                    {
+                                        <span><i class="bi bi-stars me-1"></i>@item.RecommendedAugments</span>
+                                    }
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state compact">
+                        <i class="bi bi-bookmark-star"></i>
+                        <p>還沒有收藏推薦。之後在 AI 推薦結果按收藏，就能在相似情境中當作個人 RAG 參考。</p>
+                    </div>
+                }
+            </section>
+
+            <section class="profile-panel">
+                <div class="panel-heading">
+                    <div>
+                        <div class="eyebrow">Formula</div>
+                        <h3>最近公式紀錄</h3>
+                    </div>
+                    <span>最新 5 筆</span>
+                </div>
+
+                @if (Model.RecentCalculations.Any())
+                {
+                    <div class="calc-list">
+                        @foreach (var item in Model.RecentCalculations)
+                        {
+                            <article class="calc-item">
+                                <div>
+                                    <strong>@item.FormulaType</strong>
+                                    <p>@item.InputDetails</p>
+                                </div>
+                                <div>
+                                    <time>@item.CreatedAt.ToLocalTime().ToString("MM/dd HH:mm")</time>
+                                    <span>@item.ResultContent</span>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state compact">
+                        <i class="bi bi-calculator"></i>
+                        <p>目前還沒有公式計算紀錄。</p>
+                    </div>
+                }
+            </section>
+        </main>
     </div>
 </div>
-    </div>
-</div>
+
+@section Styles {
+<style>
+    .profile-page {
+        color: #f7fbff;
+    }
+
+    .profile-grid {
+        display: grid;
+        grid-template-columns: minmax(260px, 330px) 1fr;
+        gap: 18px;
+        align-items: start;
+    }
+
+    .profile-card,
+    .profile-panel {
+        border: 1px solid rgba(92, 118, 132, 0.9);
+        background: linear-gradient(145deg, rgba(24, 29, 32, 0.98), rgba(12, 16, 20, 0.98));
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
+    }
+
+    .profile-card {
+        padding: 24px;
+        text-align: center;
+    }
+
+    .profile-avatar {
+        width: 132px;
+        height: 132px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid rgba(21, 217, 255, 0.52);
+        box-shadow: 0 0 30px rgba(21, 217, 255, 0.18);
+    }
+
+    .profile-card h2 {
+        margin: 14px 0 4px;
+        color: #ffffff;
+        font-weight: 900;
+    }
+
+    .profile-card p {
+        color: #32d296;
+        margin-bottom: 12px;
+    }
+
+    .db-chip {
+        display: block;
+        padding: 8px 10px;
+        border: 1px solid rgba(21, 217, 255, 0.26);
+        color: #96a7b8;
+        background: rgba(21, 217, 255, 0.06);
+        font-size: 0.78rem;
+    }
+
+    .avatar-form {
+        display: grid;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .profile-main {
+        display: grid;
+        gap: 18px;
+    }
+
+    .profile-panel {
+        padding: 18px;
+    }
+
+    .panel-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: end;
+        padding-bottom: 14px;
+        margin-bottom: 14px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .eyebrow {
+        color: #15d9ff;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .panel-heading h3 {
+        margin: 2px 0 0;
+        color: #ffffff;
+        font-weight: 900;
+    }
+
+    .panel-heading span {
+        color: #8fa0b2;
+        font-size: 0.86rem;
+    }
+
+    .activity-list,
+    .calc-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .activity-item {
+        display: grid;
+        grid-template-columns: 48px 1fr;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(255, 255, 255, 0.035);
+    }
+
+    .activity-icon {
+        width: 48px;
+        height: 48px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        color: #071016;
+        background: #15d9ff;
+    }
+
+    .activity-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        color: #9aaabd;
+        font-size: 0.78rem;
+    }
+
+    .activity-item h4 {
+        margin: 3px 0;
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 900;
+    }
+
+    .activity-item p {
+        margin: 0;
+        color: #c5d1dc;
+        font-size: 0.9rem;
+    }
+
+    .activity-item a {
+        display: inline-block;
+        margin-top: 6px;
+        color: #15d9ff;
+        font-weight: 800;
+        text-decoration: none;
+    }
+
+    .activity-loadout .activity-icon {
+        background: #ffdf6e;
+    }
+
+    .activity-calculator .activity-icon {
+        background: #32d296;
+    }
+
+    .activity-profile .activity-icon {
+        background: #b68cff;
+    }
+
+    .activity-favorite .activity-icon {
+        background: #ffdf6e;
+    }
+
+    .activity-adopt .activity-icon {
+        background: #8ee6a8;
+    }
+
+    .favorite-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 10px;
+    }
+
+    .favorite-card {
+        padding: 12px;
+        border: 1px solid rgba(255, 223, 110, 0.24);
+        background: linear-gradient(145deg, rgba(86, 63, 20, 0.18), rgba(255, 255, 255, 0.03));
+    }
+
+    .favorite-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: start;
+    }
+
+    .favorite-card strong,
+    .favorite-card time {
+        display: block;
+    }
+
+    .favorite-card strong {
+        color: #ffffff;
+        font-weight: 900;
+    }
+
+    .favorite-card time {
+        color: #9aaabd;
+        font-size: 0.78rem;
+        margin-top: 2px;
+    }
+
+    .adopted-chip {
+        width: fit-content;
+        display: inline-flex;
+        align-items: center;
+        margin-top: 6px;
+        padding: 3px 8px;
+        color: #072015;
+        background: #8ee6a8;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 900;
+    }
+
+    .favorite-card p {
+        margin: 10px 0;
+        color: #d5e0e7;
+        font-size: 0.9rem;
+    }
+
+    .favorite-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .favorite-meta span {
+        max-width: 100%;
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 8px;
+        color: #fff0c4;
+        background: rgba(137, 105, 39, 0.28);
+        border: 1px solid rgba(224, 184, 91, 0.35);
+        font-size: 0.78rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .calc-item {
+        display: grid;
+        grid-template-columns: 1fr minmax(220px, 0.7fr);
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .calc-item strong {
+        color: #ffdf6e;
+    }
+
+    .calc-item p,
+    .calc-item time {
+        margin: 0;
+        color: #9aaabd;
+        font-size: 0.84rem;
+    }
+
+    .calc-item span {
+        display: block;
+        color: #32d296;
+        font-weight: 800;
+    }
+
+    .empty-state {
+        display: grid;
+        place-items: center;
+        min-height: 160px;
+        color: #9aaabd;
+        text-align: center;
+        border: 1px dashed rgba(148, 163, 184, 0.32);
+        background: rgba(255, 255, 255, 0.025);
+    }
+
+    .empty-state i {
+        color: #15d9ff;
+        font-size: 2rem;
+    }
+
+    .empty-state.compact {
+        min-height: 110px;
+    }
+
+    @@media (max-width: 900px) {
+        .profile-grid,
+        .calc-item {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+}

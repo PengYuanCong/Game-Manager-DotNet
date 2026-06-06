@@ -1,0 +1,1346 @@
+@model Proposal.Models.AiRecommendationPageViewModel
+@using System.Text.Json
+
+@{
+    ViewData["Title"] = "ARAM 大亂鬥 AI 推薦";
+    var recommendationJson = Model.Recommendation == null
+        ? string.Empty
+        : JsonSerializer.Serialize(Model.Recommendation, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+    static string PriorityLabel(string priority)
+    {
+        return priority switch
+        {
+            "core" => "核心",
+            "alternative" => "替代",
+            "situational" => "情境",
+            _ => string.IsNullOrWhiteSpace(priority) ? "彈性" : priority
+        };
+    }
+
+    static string ConfidenceLabel(string confidence)
+    {
+        return confidence switch
+        {
+            "high" => "高信心",
+            "medium" => "中信心",
+            "low" => "低信心",
+            _ => string.IsNullOrWhiteSpace(confidence) ? "待確認" : confidence
+        };
+    }
+
+    static string RarityClass(string? rarity)
+    {
+        return rarity?.Trim().ToLowerInvariant() switch
+        {
+            "prismatic" or "稜彩" or "稜彩階" or "彩色" => "rarity-prismatic",
+            "gold" or "黃金" or "黃金階" => "rarity-gold",
+            "silver" or "白銀" or "白銀階" => "rarity-silver",
+            _ => "rarity-unknown"
+        };
+    }
+
+    static string TierClass(string? tier)
+    {
+        return tier?.Trim().ToUpperInvariant() switch
+        {
+            "S" or "S+" or "S-" => "tier-s",
+            "A" or "A+" or "A-" => "tier-a",
+            "B" or "B+" or "B-" => "tier-b",
+            _ => "tier-other"
+        };
+    }
+}
+
+<div class="container-fluid px-4 aram-ai-page">
+    <header class="ai-hero">
+        <div class="hero-copy">
+            <div class="section-kicker">ARAM Mayhem Console</div>
+            <h2><i class="bi bi-stars me-2"></i>ARAM 大亂鬥 AI 推薦</h2>
+            <p>用滑鼠把英雄與每階段三選一海克斯帶回來，讓本機 RAG、玩家採納回饋與 OpenRouter 一起判斷最適合的裝備與打法。</p>
+        </div>
+        <div class="ai-status">
+            <span><i class="bi bi-controller me-1"></i>隨機單中大亂鬥</span>
+            <span><i class="bi bi-database-check me-1"></i>本機 RAG</span>
+            <span><i class="bi bi-patch-check me-1"></i>玩家採納回饋</span>
+            <span><i class="bi bi-router me-1"></i>OpenRouter</span>
+        </div>
+    </header>
+
+    <div class="ai-shell">
+        <section class="ai-form-panel">
+            <form asp-action="Index" method="post" id="recommendForm" data-has-recommendation="@((Model.Recommendation != null).ToString().ToLowerInvariant())">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                <input asp-for="Input.GameTitle" type="hidden" value="英雄聯盟 隨機單中大亂鬥" />
+                <input asp-for="Input.Augment" type="hidden" id="augmentPayload" />
+                <input asp-for="Input.AvailableItems" type="hidden" value="" />
+
+                <div class="fixed-mode">
+                    <span class="fixed-mode-label">模式</span>
+                    <strong>隨機單中大亂鬥</strong>
+                </div>
+
+                <div class="field-block hero-picker-block">
+                    <div class="field-title">
+                        <span>英雄 <em>必填</em></span>
+                        <a class="picker-link" asp-controller="LolAramGuides" asp-action="Index" asp-route-pick="champion" data-save-draft>
+                            <i class="bi bi-person-bounding-box me-1"></i>挑英雄
+                        </a>
+                    </div>
+                    <input asp-for="Input.CoreChampion" id="championInput" class="form-control text-bg-dark border-secondary" placeholder="例如：瑟菈紛、布蘭德" autocomplete="off" />
+                    <span asp-validation-for="Input.CoreChampion" class="text-danger small"></span>
+                </div>
+
+                <label class="field-block">
+                    <span>對局階段</span>
+                    <select asp-for="Input.CurrentStage" id="stageSelect" class="form-select text-bg-dark border-secondary">
+                        <option value="">依目前情況選擇</option>
+                        <option value="開局三選一">開局三選一</option>
+                        <option value="7 等三選一">7 等三選一</option>
+                        <option value="11 等三選一">11 等三選一</option>
+                        <option value="15 等三選一">15 等三選一</option>
+                        <option value="後期成形">後期成形</option>
+                    </select>
+                </label>
+
+                <div class="owned-augment-board" aria-label="已選海克斯">
+                    <div class="board-title">
+                        <span>已選海克斯</span>
+                        <small>7 / 11 / 15 等會先看前面已選，再判斷本輪三選一。</small>
+                    </div>
+                    <div class="owned-augment-grid">
+                        @foreach (var owned in new[]
+                        {
+                            new { Key = "opening", Label = "開局已選" },
+                            new { Key = "level7", Label = "7 等已選" },
+                            new { Key = "level11", Label = "11 等已選" },
+                            new { Key = "level15", Label = "15 等已選" }
+                        })
+                        {
+                            <div class="owned-augment-row" data-owned-stage="@owned.Key">
+                                <span>@owned.Label</span>
+                                <input type="text"
+                                       class="form-control text-bg-dark border-secondary owned-augment-input"
+                                       data-owned-stage="@owned.Key"
+                                       placeholder="已經拿到的海克斯"
+                                       autocomplete="off" />
+                                <a class="mini-picker"
+                                   asp-controller="LolAramAugments"
+                                   asp-action="Index"
+                                   asp-route-pick="augment"
+                                   asp-route-stage="@($"selected_{owned.Key}")"
+                                   asp-route-slot="0"
+                                   data-save-draft
+                                   title="到海克斯知識庫挑選已選海克斯">
+                                    <i class="bi bi-plus-lg"></i>
+                                </a>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="augment-stage-board" aria-label="海克斯三選一輸入">
+                    <div class="board-title">
+                        <span>本階段三選一</span>
+                        <small>同一輪三個選項通常同色；有黃金重抽時才視為升階。</small>
+                    </div>
+                    <div class="stage-picker-empty" id="stagePickerEmpty">
+                        <i class="bi bi-caret-up-square me-1"></i>
+                        先選擇目前階段，這裡才會展開該階段的三選一面板。
+                    </div>
+
+                    @foreach (var stage in new[]
+                    {
+                        new { Key = "opening", Label = "開局", Hint = "遊戲開始" },
+                        new { Key = "level7", Label = "7 等", Hint = "第二次選擇" },
+                        new { Key = "level11", Label = "11 等", Hint = "第三次選擇" },
+                        new { Key = "level15", Label = "15 等", Hint = "最後一次選擇" }
+                    })
+                    {
+                        <section class="augment-stage" data-stage="@stage.Key">
+                            <div class="stage-heading">
+                                <strong>@stage.Label</strong>
+                                <span>@stage.Hint</span>
+                            </div>
+                            <p class="stage-rule-note">
+                                直接填入畫面上看到的三個選項；若黃金重抽只讓其中一個升階，點該選項旁的升階。
+                            </p>
+                            <div class="augment-choice-grid">
+                                @for (var slot = 0; slot < 3; slot++)
+                                {
+                                    <div class="augment-choice">
+                                        <input type="text"
+                                               class="form-control text-bg-dark border-secondary augment-choice-input"
+                                               data-stage="@stage.Key"
+                                               data-slot="@slot"
+                                               placeholder="選項 @(slot + 1)"
+                                               autocomplete="off" />
+                                        <button type="button"
+                                                class="upgrade-toggle"
+                                                data-stage="@stage.Key"
+                                                data-slot="@slot"
+                                                aria-pressed="false"
+                                                title="黃金重抽時，只標記被升階的這個選項">
+                                            升階
+                                        </button>
+                                        <a class="mini-picker"
+                                           asp-controller="LolAramAugments"
+                                           asp-action="Index"
+                                           asp-route-pick="augment"
+                                           asp-route-stage="@stage.Key"
+                                           asp-route-slot="@slot"
+                                           data-save-draft
+                                           title="到海克斯知識庫挑選">
+                                            <i class="bi bi-plus-lg"></i>
+                                        </a>
+                                    </div>
+                                }
+                            </div>
+                        </section>
+                    }
+                </div>
+
+                <label class="field-block">
+                    <span>對局狀況 / 備註 <em>選填</em></span>
+                    <textarea asp-for="Input.Notes" id="notesInput" class="form-control text-bg-dark border-secondary" rows="4" placeholder="例如：敵方刺客多、我方缺前排、想偏輔助或偏輸出"></textarea>
+                </label>
+
+                <button type="submit" class="btn btn-info text-dark fw-bold w-100 ai-submit" id="recommendButton">
+                    <i class="bi bi-lightning-charge-fill me-1"></i>產生推薦
+                </button>
+            </form>
+        </section>
+
+        <main class="ai-output">
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success border-0 text-bg-success" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i>@TempData["Success"]
+                </div>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger border-0 text-bg-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["Error"]
+                </div>
+            }
+
+            <div id="pendingPanel" class="ai-empty d-none">
+                <div class="spinner-border text-info mb-3" role="status" aria-hidden="true"></div>
+                <h5>正在拆解這局</h5>
+                <p>正在比對英雄定位、海克斯三選一與玩家採納回饋。</p>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+            {
+                <div class="alert alert-danger border-0 text-bg-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>@Model.ErrorMessage
+                </div>
+            }
+
+            @if (Model.Recommendation == null)
+            {
+                <section class="ai-empty ai-empty-grid">
+                    <div class="empty-command">
+                        <span class="empty-orb"><i class="bi bi-cpu"></i></span>
+                        <div>
+                            <div class="section-kicker">Recommendation Console</div>
+                            <h5>等待英雄鎖定</h5>
+                            <p>不用先想裝備。選英雄與海克斯三選一後，AI 會直接給你裝備、海克斯與打法路線。</p>
+                        </div>
+                    </div>
+                    <div class="empty-hint-grid">
+                        <div>
+                            <strong>01</strong>
+                            <span>挑英雄</span>
+                            <p>點左側按鈕到英雄頁選取，會自動帶回來。</p>
+                        </div>
+                        <div>
+                            <strong>02</strong>
+                            <span>帶回三選一</span>
+                            <p>每階段三個海克斯都能從知識庫點選。</p>
+                        </div>
+                        <div>
+                            <strong>03</strong>
+                            <span>拿裝備答案</span>
+                            <p>裝備由 AI 根據英雄與海克斯推薦，不需要手動輸入。</p>
+                        </div>
+                    </div>
+                </section>
+            }
+            else
+            {
+                <section class="summary-card">
+                    <div>
+                        <div class="section-kicker">推薦主軸</div>
+                        <h3>@Model.Recommendation.CoreChampion</h3>
+                        <p>@Model.Recommendation.Summary</p>
+                        <div class="recommendation-actions">
+                            <form asp-action="Favorite" method="post">
+                                <input type="hidden" name="Input.GameTitle" value="@Model.Input.GameTitle" />
+                                <input type="hidden" name="Input.CoreChampion" value="@Model.Input.CoreChampion" />
+                                <input type="hidden" name="Input.CurrentStage" value="@Model.Input.CurrentStage" />
+                                <input type="hidden" name="Input.Augment" value="@Model.Input.Augment" />
+                                <input type="hidden" name="Input.AvailableItems" value="" />
+                                <input type="hidden" name="Input.Notes" value="@Model.Input.Notes" />
+                                <input type="hidden" name="recommendationJson" value="@recommendationJson" />
+                                <button type="submit" class="btn btn-outline-warning btn-sm fw-bold">
+                                    <i class="bi bi-bookmark-star me-1"></i>收藏
+                                </button>
+                            </form>
+                            <form asp-action="Adopt" method="post">
+                                <input type="hidden" name="Input.GameTitle" value="@Model.Input.GameTitle" />
+                                <input type="hidden" name="Input.CoreChampion" value="@Model.Input.CoreChampion" />
+                                <input type="hidden" name="Input.CurrentStage" value="@Model.Input.CurrentStage" />
+                                <input type="hidden" name="Input.Augment" value="@Model.Input.Augment" />
+                                <input type="hidden" name="Input.AvailableItems" value="" />
+                                <input type="hidden" name="Input.Notes" value="@Model.Input.Notes" />
+                                <input type="hidden" name="recommendationJson" value="@recommendationJson" />
+                                <button type="submit" class="btn btn-info btn-sm text-dark fw-bold">
+                                    <i class="bi bi-patch-check-fill me-1"></i>採納這套
+                                </button>
+                            </form>
+                            @if (Model.WasLoadedFromFavorite)
+                            {
+                                <span class="memory-chip"><i class="bi bi-bookmark-check me-1"></i>已載入收藏</span>
+                            }
+                            @if (Model.WasFavoriteMemoryUsed)
+                            {
+                                <span class="memory-chip"><i class="bi bi-database-heart me-1"></i>已參考玩家回饋</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="summary-meta">
+                        <span>@ConfidenceLabel(Model.Recommendation.Confidence)</span>
+                        <span>@(Model.WasLoadedFromCache ? "快取命中" : "即時生成")</span>
+                        <span>@(Model.WasKnowledgeUsed ? "已使用 RAG" : "無本機知識")</span>
+                    </div>
+                </section>
+
+                @if (Model.WasKnowledgeUsed)
+                {
+                    <div class="knowledge-strip">
+                        <i class="bi bi-database-check"></i>
+                        <span>知識來源：</span>
+                        @if (!string.IsNullOrWhiteSpace(Model.KnowledgeSourceUrl))
+                        {
+                            <a href="@Model.KnowledgeSourceUrl" target="_blank" rel="noopener noreferrer">@Model.KnowledgeSourceLabel</a>
+                        }
+                        else
+                        {
+                            <strong>@Model.KnowledgeSourceLabel</strong>
+                        }
+                    </div>
+                }
+
+                <section class="result-section">
+                    <div class="section-title">
+                        <h4><i class="bi bi-bag-check me-2"></i>裝備推薦</h4>
+                        <span>由 AI 根據英雄、海克斯與對局狀況產生</span>
+                    </div>
+                    <div class="result-grid">
+                        @foreach (var item in Model.Recommendation.RecommendedItems)
+                        {
+                            <article class="result-card item-pick">
+                                <div class="card-head">
+                                    <h5>@Proposal.Services.LolItemNameNormalizer.Normalize(item.ItemName)</h5>
+                                    <span class="priority-chip">@PriorityLabel(item.Priority)</span>
+                                </div>
+                                <p>@item.Reason</p>
+                            </article>
+                        }
+                    </div>
+                </section>
+
+                <section class="result-section">
+                    <div class="section-title">
+                        <h4><i class="bi bi-gem me-2"></i>海克斯判斷</h4>
+                        <span>會優先回答你本局三選一裡的最佳解</span>
+                    </div>
+                    @if (Model.Recommendation.RecommendedAugments.Count == 0)
+                    {
+                        <div class="text-secondary">這次沒有明確海克斯推薦。</div>
+                    }
+                    else
+                    {
+                        <div class="result-grid">
+                            @foreach (var augment in Model.Recommendation.RecommendedAugments)
+                            {
+                                <article class="result-card augment-pick @RarityClass(augment.Rarity)">
+                                    <div class="card-head">
+                                        <h5>@augment.AugmentName</h5>
+                                        <span class="tier-chip @TierClass(augment.Tier)">@augment.Tier</span>
+                                    </div>
+                                    <p>@augment.Reason</p>
+                                </article>
+                            }
+                        </div>
+                    }
+                </section>
+
+                <section class="result-section compact">
+                    <div class="stage-plan">
+                        <h4><i class="bi bi-map me-2"></i>階段計畫</h4>
+                        <p>@Model.Recommendation.StagePlan</p>
+                    </div>
+                    <div class="trait-list">
+                        @foreach (var trait in Model.Recommendation.TeamTraits)
+                        {
+                            <div>
+                                <strong>@trait.TraitName</strong>
+                                <span>@trait.Reason</span>
+                            </div>
+                        }
+                    </div>
+                </section>
+
+                <section class="result-section tips-grid">
+                    <div>
+                        <h4><i class="bi bi-crosshair me-2"></i>站位</h4>
+                        <ul>
+                            @foreach (var tip in Model.Recommendation.PositioningTips)
+                            {
+                                <li>@tip</li>
+                            }
+                        </ul>
+                    </div>
+                    <div>
+                        <h4><i class="bi bi-controller me-2"></i>操作</h4>
+                        <ul>
+                            @foreach (var tip in Model.Recommendation.GameplayTips)
+                            {
+                                <li>@tip</li>
+                            }
+                        </ul>
+                    </div>
+                </section>
+            }
+        </main>
+    </div>
+</div>
+
+@section Styles {
+<style>
+    .aram-ai-page {
+        color: #edf7f7;
+        max-width: 1800px;
+        margin: 0 auto;
+    }
+
+    .ai-hero {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: flex-end;
+        min-height: 196px;
+        padding: 24px;
+        margin-bottom: 18px;
+        border: 1px solid rgba(37, 215, 232, 0.24);
+        background:
+            radial-gradient(circle at 78% 24%, rgba(151, 222, 146, 0.16), transparent 30%),
+            linear-gradient(110deg, rgba(5, 15, 24, 0.97) 0%, rgba(7, 18, 28, 0.92) 56%, rgba(10, 26, 36, 0.78) 100%),
+            url('/images/摰硫.jpg') center / cover no-repeat;
+        box-shadow: inset 0 0 0 1px rgba(255, 211, 101, 0.05), 0 22px 54px rgba(0, 0, 0, 0.28);
+        overflow: hidden;
+    }
+
+    .ai-hero::after {
+        content: "";
+        position: absolute;
+        inset: auto 0 0 0;
+        height: 3px;
+        background: linear-gradient(90deg, #25d7e8, #d4af37, #96de92, transparent);
+        opacity: 0.9;
+    }
+
+    .ai-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .ai-hero h2,
+    .summary-card h3 {
+        margin: 0;
+        color: #25d7e8;
+        font-weight: 900;
+        letter-spacing: 0;
+    }
+
+    .ai-hero p,
+    .summary-card p,
+    .ai-empty p,
+    .result-card p,
+    .stage-plan p {
+        margin: 6px 0 0;
+        color: #a9bac2;
+    }
+
+    .section-kicker {
+        color: #25d7e8;
+        font-size: 0.74rem;
+        font-weight: 900;
+        text-transform: uppercase;
+    }
+
+    .ai-status,
+    .summary-meta {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .ai-status span,
+    .summary-meta span,
+    .memory-chip,
+    .priority-chip,
+    .tier-chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        padding: 4px 9px;
+        border-radius: 4px;
+        color: #d9f9ff;
+        background: rgba(37, 215, 232, 0.12);
+        border: 1px solid rgba(37, 215, 232, 0.35);
+        font-size: 0.78rem;
+        font-weight: 850;
+    }
+
+    .ai-shell {
+        display: grid;
+        grid-template-columns: minmax(360px, 480px) minmax(0, 1fr);
+        gap: 24px;
+        align-items: start;
+    }
+
+    .ai-form-panel,
+    .ai-empty,
+    .summary-card,
+    .result-section {
+        background:
+            linear-gradient(160deg, rgba(9, 24, 34, 0.95), rgba(4, 12, 19, 0.8)),
+            rgba(4, 12, 19, 0.78);
+        border: 1px solid rgba(37, 215, 232, 0.24);
+        border-radius: 8px;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+    }
+
+    .ai-form-panel {
+        padding: 18px;
+        position: sticky;
+        top: 88px;
+        box-shadow: inset 0 0 0 1px rgba(255, 211, 101, 0.04), 0 22px 44px rgba(0, 0, 0, 0.24);
+    }
+
+    .fixed-mode {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+        padding: 10px 12px;
+        color: #dffbff;
+        background: rgba(37, 215, 232, 0.1);
+        border: 1px solid rgba(37, 215, 232, 0.34);
+        border-radius: 6px;
+    }
+
+    .fixed-mode-label,
+    .field-block > span,
+    .field-title > span,
+    .board-title span {
+        color: #25d7e8;
+        font-size: 0.84rem;
+        font-weight: 900;
+    }
+
+    .field-block,
+    .owned-augment-board,
+    .augment-stage-board {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 14px;
+        padding: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.027);
+    }
+
+    .field-title,
+    .board-title,
+    .owned-augment-row,
+    .stage-heading,
+    .card-head,
+    .section-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .field-block em,
+    .board-title small {
+        color: #ffe082;
+        font-style: normal;
+        font-size: 0.72rem;
+        margin-left: 4px;
+    }
+
+    .picker-link,
+    .mini-picker {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #06121a;
+        background: #25d7e8;
+        border: 1px solid rgba(37, 215, 232, 0.8);
+        border-radius: 6px;
+        font-weight: 900;
+        text-decoration: none;
+        transition: transform 150ms ease, box-shadow 150ms ease;
+    }
+
+    .picker-link {
+        min-height: 34px;
+        padding: 5px 10px;
+        font-size: 0.84rem;
+    }
+
+    .picker-link:hover,
+    .mini-picker:hover {
+        color: #06121a;
+        transform: translateY(-1px);
+        box-shadow: 0 10px 22px rgba(37, 215, 232, 0.25);
+    }
+
+    .owned-augment-board,
+    .augment-stage-board {
+        gap: 12px;
+    }
+
+    .owned-augment-grid {
+        display: grid;
+        gap: 8px;
+    }
+
+    .owned-augment-row {
+        display: grid;
+        grid-template-columns: 82px minmax(0, 1fr) 36px;
+        padding: 8px;
+        border: 1px solid rgba(37, 215, 232, 0.14);
+        border-radius: 6px;
+        background: rgba(2, 10, 18, 0.46);
+        opacity: 0.62;
+        transition: opacity 140ms ease, border-color 140ms ease, background 140ms ease;
+    }
+
+    .owned-augment-row > span {
+        color: #fff4c4;
+        font-size: 0.78rem;
+        font-weight: 900;
+    }
+
+    .owned-augment-row.is-relevant {
+        opacity: 1;
+        border-color: rgba(255, 224, 130, 0.32);
+        background: rgba(255, 224, 130, 0.055);
+    }
+
+    .owned-augment-row.is-future {
+        opacity: 0.38;
+    }
+
+    .stage-rule-note {
+        margin: -2px 0 8px;
+        color: #a9bac2;
+        font-size: 0.78rem;
+        line-height: 1.55;
+    }
+
+    .stage-picker-empty {
+        padding: 14px;
+        color: #b9c9cf;
+        border: 1px dashed rgba(37, 215, 232, 0.28);
+        border-radius: 6px;
+        background: rgba(37, 215, 232, 0.055);
+        font-size: 0.9rem;
+    }
+
+    .augment-stage {
+        display: none;
+        padding: 10px;
+        border: 1px solid rgba(37, 215, 232, 0.16);
+        border-radius: 6px;
+        background: rgba(2, 10, 18, 0.5);
+        transform-origin: top center;
+    }
+
+    .augment-stage.is-active {
+        display: block;
+        animation: stagePop 220ms cubic-bezier(.2, 1.25, .34, 1) both;
+    }
+
+    @@keyframes stagePop {
+        from {
+            opacity: 0;
+            transform: translateY(-8px) scale(0.985);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .stage-heading {
+        margin-bottom: 8px;
+    }
+
+    .stage-heading strong {
+        color: #fff4c4;
+    }
+
+    .stage-heading span {
+        color: #8ea5ae;
+        font-size: 0.78rem;
+    }
+
+    .augment-choice-grid {
+        display: grid;
+        gap: 8px;
+    }
+
+    .augment-choice {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 52px 36px;
+        gap: 7px;
+        align-items: center;
+    }
+
+    .upgrade-toggle {
+        width: 52px;
+        min-height: 36px;
+        border: 1px solid rgba(255, 224, 130, 0.35);
+        border-radius: 6px;
+        color: #ffe082;
+        background: rgba(255, 224, 130, 0.08);
+        font-size: 0.76rem;
+        font-weight: 900;
+        transition: transform 150ms ease, background 150ms ease, box-shadow 150ms ease;
+    }
+
+    .upgrade-toggle:hover {
+        transform: translateY(-1px);
+        background: rgba(255, 224, 130, 0.16);
+        box-shadow: 0 10px 22px rgba(255, 224, 130, 0.14);
+    }
+
+    .upgrade-toggle.is-active {
+        color: #06121a;
+        background: linear-gradient(135deg, #ffe082, #25d7e8);
+        border-color: rgba(255, 255, 255, 0.72);
+    }
+
+    .mini-picker {
+        width: 36px;
+        height: 36px;
+    }
+
+    .aram-ai-page textarea {
+        resize: vertical;
+    }
+
+    .ai-submit {
+        min-height: 46px;
+        border-radius: 6px;
+        box-shadow: 0 12px 28px rgba(37, 215, 232, 0.18);
+        transition: transform 150ms ease, box-shadow 150ms ease;
+    }
+
+    .ai-submit:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 16px 36px rgba(37, 215, 232, 0.26);
+    }
+
+    .ai-output {
+        display: grid;
+        gap: 16px;
+        min-height: 520px;
+    }
+
+    .ai-empty {
+        display: grid;
+        place-items: center;
+        min-height: 500px;
+        padding: 28px;
+        text-align: left;
+    }
+
+    .ai-empty-grid {
+        align-content: center;
+        gap: 28px;
+    }
+
+    .empty-command {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        width: min(100%, 760px);
+    }
+
+    .empty-orb {
+        display: grid;
+        place-items: center;
+        width: 64px;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        color: #05202b;
+        background: linear-gradient(135deg, #25d7e8, #ffe082 92%);
+        border: 3px solid rgba(255, 255, 255, 0.8);
+        box-shadow: 0 18px 38px rgba(37, 215, 232, 0.28);
+        font-size: 1.6rem;
+        flex: none;
+    }
+
+    .empty-command h5 {
+        margin: 0;
+        color: #fff;
+        font-size: 1.8rem;
+        font-weight: 900;
+    }
+
+    .empty-hint-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        width: 100%;
+    }
+
+    .empty-hint-grid div {
+        min-height: 130px;
+        padding: 18px;
+        border: 1px solid rgba(37, 215, 232, 0.2);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.035);
+    }
+
+    .empty-hint-grid strong {
+        display: block;
+        color: #ffe082;
+        font-size: 0.86rem;
+        margin-bottom: 8px;
+    }
+
+    .empty-hint-grid span {
+        display: block;
+        color: #fff;
+        font-weight: 900;
+    }
+
+    .summary-card {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        align-items: start;
+        padding: 20px;
+        border-color: rgba(37, 215, 232, 0.34);
+    }
+
+    .recommendation-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-top: 14px;
+    }
+
+    .recommendation-actions form {
+        margin: 0;
+    }
+
+    .memory-chip {
+        color: #fff0c4;
+        background: rgba(137, 105, 39, 0.32);
+        border-color: rgba(224, 184, 91, 0.44);
+    }
+
+    .knowledge-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 12px;
+        color: #06121a;
+        background: #25d7e8;
+        border-radius: 6px;
+        font-weight: 900;
+    }
+
+    .knowledge-strip a {
+        color: #06121a;
+    }
+
+    .result-section {
+        padding: 18px;
+    }
+
+    .section-title {
+        margin-bottom: 13px;
+    }
+
+    .section-title h4,
+    .stage-plan h4,
+    .tips-grid h4 {
+        margin: 0;
+        color: #fff;
+        font-size: 1.05rem;
+        font-weight: 900;
+    }
+
+    .section-title span {
+        color: #8ea5ae;
+        font-size: 0.84rem;
+    }
+
+    .result-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+    }
+
+    .result-card {
+        min-height: 128px;
+        padding: 14px;
+        border-radius: 6px;
+        background: rgba(5, 18, 31, 0.82);
+        border: 1px solid rgba(37, 215, 232, 0.24);
+        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .result-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(37, 215, 232, 0.68);
+        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.24), inset 0 0 0 1px rgba(255, 211, 101, 0.08);
+    }
+
+    .card-head h5 {
+        margin: 0;
+        color: #fff;
+        font-size: 0.98rem;
+        font-weight: 900;
+        overflow-wrap: anywhere;
+    }
+
+    .rarity-prismatic { border-color: rgba(223, 173, 255, 0.5); background: rgba(84, 49, 114, 0.45); }
+    .rarity-gold { border-color: rgba(224, 184, 91, 0.54); background: rgba(106, 80, 28, 0.42); }
+    .rarity-silver { border-color: rgba(190, 215, 226, 0.5); background: rgba(73, 88, 98, 0.42); }
+    .rarity-unknown { border-color: rgba(37, 215, 232, 0.3); }
+    .tier-s { color: #fff0c4; border-color: rgba(224, 184, 91, 0.6); }
+    .tier-a { color: #dff9ff; border-color: rgba(141, 226, 255, 0.5); }
+    .tier-b { color: #e8ffd8; border-color: rgba(164, 209, 122, 0.5); }
+
+    .compact {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
+        gap: 18px;
+    }
+
+    .trait-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .trait-list div {
+        padding: 10px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .trait-list strong,
+    .trait-list span {
+        display: block;
+    }
+
+    .trait-list strong {
+        color: #25d7e8;
+    }
+
+    .trait-list span {
+        color: #b9c9cf;
+        margin-top: 3px;
+    }
+
+    .tips-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+    }
+
+    .tips-grid ul {
+        margin: 10px 0 0;
+        padding-left: 18px;
+        color: #dce8eb;
+    }
+
+    .tips-grid li + li {
+        margin-top: 7px;
+    }
+
+    @@media (max-width: 1199px) {
+        .ai-shell {
+            grid-template-columns: 1fr;
+        }
+
+        .ai-form-panel {
+            position: static;
+        }
+
+        .ai-empty-grid,
+        .ai-output {
+            min-height: 0;
+        }
+    }
+
+    @@media (max-width: 767px) {
+        .ai-hero,
+        .summary-card,
+        .section-title,
+        .compact,
+        .tips-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .ai-status,
+        .summary-meta {
+            justify-content: flex-start;
+        }
+
+        .empty-command {
+            display: grid;
+        }
+
+        .empty-hint-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const draftKey = 'aramAiRecommendationDraft';
+            const form = document.getElementById('recommendForm');
+            const championInput = document.getElementById('championInput');
+            const stageSelect = document.getElementById('stageSelect');
+            const notesInput = document.getElementById('notesInput');
+            const augmentPayload = document.getElementById('augmentPayload');
+            const choiceInputs = Array.from(document.querySelectorAll('.augment-choice-input'));
+            const ownedInputs = Array.from(document.querySelectorAll('.owned-augment-input'));
+            const upgradeButtons = Array.from(document.querySelectorAll('.upgrade-toggle'));
+            const stageSections = Array.from(document.querySelectorAll('.augment-stage'));
+            const ownedRows = Array.from(document.querySelectorAll('.owned-augment-row'));
+            const stagePickerEmpty = document.getElementById('stagePickerEmpty');
+            const stageLabels = {
+                opening: '開局三選一',
+                level7: '7 等三選一',
+                level11: '11 等三選一',
+                level15: '15 等三選一'
+            };
+            const ownedStageLabels = {
+                opening: '開局已選',
+                level7: '7 等已選',
+                level11: '11 等已選',
+                level15: '15 等已選'
+            };
+            const stageOrder = ['opening', 'level7', 'level11', 'level15'];
+            const stageKeyByValue = Object.fromEntries(
+                Object.entries(stageLabels).map(([key, value]) => [value, key])
+            );
+
+            const readDraft = () => {
+                try {
+                    return JSON.parse(sessionStorage.getItem(draftKey) || '{}');
+                } catch {
+                    return {};
+                }
+            };
+
+            const normalizeDraft = (draft) => ({
+                coreChampion: draft.coreChampion || '',
+                currentStage: draft.currentStage || '',
+                notes: draft.notes || '',
+                augmentStages: draft.augmentStages || {},
+                augmentChoiceRarities: draft.augmentChoiceRarities || {},
+                augmentUpgrades: draft.augmentUpgrades || {}
+            });
+
+            const writeDraft = (draft) => {
+                sessionStorage.setItem(draftKey, JSON.stringify(normalizeDraft(draft)));
+            };
+
+            const currentDraftFromForm = () => {
+                const draft = normalizeDraft(readDraft());
+                draft.coreChampion = championInput?.value || '';
+                draft.currentStage = stageSelect?.value || '';
+                draft.notes = notesInput?.value || '';
+                draft.augmentStages = {};
+
+                for (const input of choiceInputs) {
+                    const stage = input.dataset.stage || '';
+                    const slot = Number(input.dataset.slot || '0');
+                    draft.augmentStages[stage] ??= ['', '', ''];
+                    draft.augmentStages[stage][slot] = input.value.trim();
+                }
+
+                for (const input of ownedInputs) {
+                    const stage = `selected_${input.dataset.ownedStage || ''}`;
+                    draft.augmentStages[stage] ??= [''];
+                    draft.augmentStages[stage][0] = input.value.trim();
+                }
+
+                draft.augmentUpgrades = {};
+                for (const button of upgradeButtons) {
+                    const stage = button.dataset.stage || '';
+                    const slot = Number(button.dataset.slot || '0');
+                    draft.augmentUpgrades[stage] ??= [false, false, false];
+                    draft.augmentUpgrades[stage][slot] = button.classList.contains('is-active');
+                }
+
+                return draft;
+            };
+
+            const compileAugments = () => {
+                const activeStage = stageKeyByValue[stageSelect?.value || ''] || '';
+                const draft = normalizeDraft(readDraft());
+                const formatChoice = (stage, index, value) => {
+                    const meta = [];
+                    const rarity = draft.augmentChoiceRarities?.[stage]?.[index];
+                    const isUpgraded = upgradeButtons.some(button =>
+                        button.dataset.stage === stage
+                        && button.dataset.slot === String(index)
+                        && button.classList.contains('is-active'));
+
+                    if (rarity) {
+                        meta.push(rarity);
+                    }
+
+                    if (isUpgraded) {
+                        meta.push('黃金重抽升階');
+                    }
+
+                    return meta.length > 0 ? `${value}（${meta.join('，')}）` : value;
+                };
+                const lines = [
+                    '決策規則：除開局外，後續階段必須參考前面已選海克斯的套裝、屬性標籤與英雄打法，再從本階段三選一挑最佳解。',
+                    '顏色規則：玩家不需要手動指定顏色；若資料庫有顏色就附帶給 AI。黃金重抽只會讓被標記的單一候選升階。'
+                ];
+
+                const ownedLines = Object.entries(ownedStageLabels)
+                    .map(([stage, label]) => {
+                        const value = ownedInputs.find(input => input.dataset.ownedStage === stage)?.value.trim();
+                        return value ? `${label}：${value}` : '';
+                    })
+                    .filter(Boolean);
+
+                if (ownedLines.length > 0) {
+                    lines.push(`已選海克斯：${ownedLines.join('；')}`);
+                }
+
+                if (activeStage) {
+                    const activeLabel = stageLabels[activeStage];
+                    const currentValues = choiceInputs
+                        .filter(input => input.dataset.stage === activeStage)
+                        .map(input => ({
+                            slot: Number(input.dataset.slot || '0'),
+                            value: input.value.trim()
+                        }))
+                        .filter(choice => choice.value);
+                    const activeIndex = stageOrder.indexOf(activeStage);
+                    const previousOwned = stageOrder
+                        .slice(0, Math.max(activeIndex, 0))
+                        .map(stage => ownedInputs.find(input => input.dataset.ownedStage === stage)?.value.trim())
+                        .filter(Boolean);
+                    const upgradedChoices = currentValues
+                        .filter(choice => upgradeButtons.some(button =>
+                            button.dataset.stage === activeStage
+                            && button.dataset.slot === String(choice.slot)
+                            && button.classList.contains('is-active')))
+                        .map(choice => choice.value);
+
+                    lines.push(`目前階段：${activeLabel}`);
+                    lines.push(`前面已選參考：${previousOwned.length > 0 ? previousOwned.join(' / ') : '無或尚未輸入'}`);
+                    lines.push(`本階段三選一：${currentValues.length > 0 ? currentValues.map(choice => formatChoice(activeStage, choice.slot, choice.value)).join(' / ') : '尚未輸入'}`);
+                    if (upgradedChoices.length > 0) {
+                        lines.push(`黃金重抽升階候選：${upgradedChoices.join(' / ')}`);
+                    }
+                    lines.push('本階段輸出要求：若已輸入本階段三選一，recommendedAugments 只排序這三個候選，第一個就是本輪最佳選擇，不要推薦候選外海克斯。');
+                } else {
+                    const fallbackLines = Object.entries(stageLabels)
+                        .map(([stage, label]) => {
+                            const values = choiceInputs
+                                .filter(input => input.dataset.stage === stage)
+                                .map(input => input.value.trim())
+                                .filter(Boolean);
+                            return values.length === 0 ? '' : `${label}：${values.join(' / ')}`;
+                        })
+                        .filter(Boolean);
+
+                    if (fallbackLines.length > 0) {
+                        lines.push(`候選紀錄：${fallbackLines.join('；')}`);
+                    }
+                }
+
+                augmentPayload.value = lines.join('\n');
+                return augmentPayload.value;
+            };
+
+            const syncActiveStage = () => {
+                const activeStage = stageKeyByValue[stageSelect?.value || ''] || '';
+                const activeIndex = stageOrder.indexOf(activeStage);
+                stageSections.forEach(section => {
+                    const isActive = section.dataset.stage === activeStage;
+                    section.classList.toggle('is-active', isActive);
+                    section.querySelectorAll('input, a').forEach(element => {
+                        element.tabIndex = isActive ? 0 : -1;
+                    });
+                });
+
+                if (stagePickerEmpty) {
+                    stagePickerEmpty.hidden = Boolean(activeStage);
+                }
+
+                ownedRows.forEach(row => {
+                    const rowIndex = stageOrder.indexOf(row.dataset.ownedStage || '');
+                    const isRelevant = activeIndex > rowIndex && rowIndex >= 0;
+                    const isFuture = activeIndex >= 0 && rowIndex >= activeIndex;
+                    row.classList.toggle('is-relevant', isRelevant);
+                    row.classList.toggle('is-future', isFuture);
+                });
+            };
+
+            const restoreDraft = () => {
+                const draft = normalizeDraft(readDraft());
+
+                if (draft.coreChampion && championInput && !championInput.value) {
+                    championInput.value = draft.coreChampion;
+                }
+
+                if (draft.currentStage && stageSelect && !stageSelect.value) {
+                    stageSelect.value = draft.currentStage;
+                }
+
+                if (draft.notes && notesInput && !notesInput.value) {
+                    notesInput.value = draft.notes;
+                }
+
+                for (const input of choiceInputs) {
+                    const stage = input.dataset.stage || '';
+                    const slot = Number(input.dataset.slot || '0');
+                    const value = draft.augmentStages?.[stage]?.[slot];
+                    if (value && !input.value) {
+                        input.value = value;
+                    }
+                }
+
+                for (const input of ownedInputs) {
+                    const stage = `selected_${input.dataset.ownedStage || ''}`;
+                    const value = draft.augmentStages?.[stage]?.[0];
+                    if (value && !input.value) {
+                        input.value = value;
+                    }
+                }
+
+                for (const button of upgradeButtons) {
+                    const stage = button.dataset.stage || '';
+                    const slot = Number(button.dataset.slot || '0');
+                    const isUpgraded = Boolean(draft.augmentUpgrades?.[stage]?.[slot]);
+                    button.classList.toggle('is-active', isUpgraded);
+                    button.setAttribute('aria-pressed', isUpgraded ? 'true' : 'false');
+                }
+
+                if (augmentPayload.value && !choiceInputs.some(input => input.value.trim())) {
+                    for (const line of augmentPayload.value.split(/\r?\n/)) {
+                        const [label, rawValues] = line.split('：');
+                        const stage = Object.entries(stageLabels).find(([, value]) => value === label)?.[0];
+                        if (!stage || !rawValues) {
+                            continue;
+                        }
+
+                        rawValues.split('/').map(value => value.trim()).filter(Boolean).slice(0, 3).forEach((value, index) => {
+                            const input = choiceInputs.find(item => item.dataset.stage === stage && item.dataset.slot === String(index));
+                            if (input) {
+                                input.value = value;
+                            }
+                        });
+                    }
+                }
+
+                compileAugments();
+                syncActiveStage();
+            };
+
+            document.querySelectorAll('[data-save-draft]').forEach(link => {
+                link.addEventListener('click', () => {
+                    compileAugments();
+                    writeDraft(currentDraftFromForm());
+                });
+            });
+
+            [championInput, stageSelect, notesInput, ...choiceInputs, ...ownedInputs]
+                .filter(Boolean)
+                .forEach(input => {
+                    input.addEventListener('input', () => {
+                        compileAugments();
+                        writeDraft(currentDraftFromForm());
+                        if (input === stageSelect) {
+                            syncActiveStage();
+                        }
+                    });
+                    input.addEventListener('change', () => {
+                        compileAugments();
+                        writeDraft(currentDraftFromForm());
+                        if (input === stageSelect) {
+                            syncActiveStage();
+                        }
+                    });
+                });
+
+            upgradeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const isActive = !button.classList.contains('is-active');
+                    button.classList.toggle('is-active', isActive);
+                    button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+                    compileAugments();
+                    writeDraft(currentDraftFromForm());
+                });
+            });
+
+            form?.addEventListener('submit', function () {
+                compileAugments();
+                writeDraft(currentDraftFromForm());
+
+                if (window.jQuery && !$(this).valid()) {
+                    return;
+                }
+
+                if (!this.checkValidity()) {
+                    return;
+                }
+
+                const button = document.getElementById('recommendButton');
+                const pendingPanel = document.getElementById('pendingPanel');
+
+                button.disabled = true;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>產生中';
+                pendingPanel?.classList.remove('d-none');
+            });
+
+            restoreDraft();
+            syncActiveStage();
+        })();
+    </script>
+}

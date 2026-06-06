@@ -1,6 +1,5 @@
-﻿@{
-    // 這一行非常關鍵！它會讓這個畫面「不要」套用原本有左側選單的 _Layout.cshtml
-    Layout = null; 
+@{
+    Layout = null;
 }
 
 <!DOCTYPE html>
@@ -8,92 +7,467 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>系統登入</title>
+    <title>登入 - 彭彭遊戲基地</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-    
+
     <style>
-        /* 專屬登入頁面的深藍色漸層背景 */
+        :root {
+            --rift-bg: #03080d;
+            --rift-panel: rgba(6, 22, 31, 0.92);
+            --rift-panel-strong: rgba(8, 33, 43, 0.96);
+            --rift-line: rgba(31, 230, 246, 0.32);
+            --rift-cyan: #23e8ff;
+            --rift-gold: #d8b65c;
+            --rift-cream: #fff2c8;
+            --rift-muted: #8da7b2;
+            --rift-danger: #ff5a6c;
+            --poro-bg: url("https://wiki.leagueoflegends.com/en-us/Special:Redirect/file/Ready_to_Play_Poro_profileicon.jpg");
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            min-height: 100vh;
             margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #f4fbff;
+            font-family: "Microsoft JhengHei", "Noto Sans TC", "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at 18% 18%, rgba(35, 232, 255, 0.16), transparent 24rem),
+                radial-gradient(circle at 82% 78%, rgba(216, 182, 92, 0.13), transparent 26rem),
+                linear-gradient(135deg, #02060a 0%, #051823 54%, #020509 100%);
+            overflow-x: hidden;
         }
-        .login-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px); /* 毛玻璃特效 */
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            box-shadow: 0 15px 25px rgba(0,0,0,0.5);
-            padding: 40px;
-            width: 100%;
-            max-width: 400px;
-            color: white;
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(rgba(35, 232, 255, 0.045) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(35, 232, 255, 0.045) 1px, transparent 1px);
+            background-size: 44px 44px;
+            mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
         }
-        .login-card input {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: white;
+
+        .auth-shell {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: minmax(320px, 0.9fr) minmax(360px, 520px);
+            gap: clamp(28px, 6vw, 88px);
+            align-items: center;
+            width: min(1180px, calc(100% - 40px));
+            margin: 0 auto;
+            padding: 48px 0;
+            position: relative;
         }
-        .login-card input:focus {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            box-shadow: none;
-            border: 1px solid #0dcaf0;
+
+        .back-link {
+            position: fixed;
+            top: 22px;
+            left: 22px;
+            z-index: 5;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 42px;
+            padding: 8px 14px;
+            color: var(--rift-cyan);
+            text-decoration: none;
+            border: 1px solid var(--rift-line);
+            background: rgba(4, 18, 25, 0.72);
+            box-shadow: 0 0 22px rgba(35, 232, 255, 0.12);
+        }
+
+        .back-link:hover {
+            color: #061018;
+            background: var(--rift-cyan);
+        }
+
+        .auth-lore {
+            position: relative;
+            min-height: 620px;
+            padding: 42px;
+            border: 1px solid rgba(216, 182, 92, 0.32);
+            background-image:
+                linear-gradient(135deg, rgba(1, 9, 15, 0.92), rgba(5, 28, 40, 0.78)),
+                var(--poro-bg),
+                repeating-linear-gradient(90deg, rgba(35, 232, 255, 0.06) 0 1px, transparent 1px 78px);
+            background-position:
+                center,
+                right 30px bottom 28px,
+                center;
+            background-size:
+                auto,
+                min(42vw, 280px) auto,
+                78px 78px;
+            background-repeat:
+                no-repeat,
+                no-repeat,
+                repeat;
+            box-shadow: 0 24px 90px rgba(0, 0, 0, 0.44);
+            overflow: hidden;
+        }
+
+        .auth-lore::before {
+            content: "";
+            position: absolute;
+            width: 520px;
+            height: 520px;
+            right: -160px;
+            bottom: -140px;
+            border: 1px solid rgba(216, 182, 92, 0.38);
+            border-radius: 50%;
+            box-shadow: inset 0 0 44px rgba(35, 232, 255, 0.08);
+        }
+
+        .auth-kicker {
+            color: var(--rift-cyan);
+            font-size: 0.78rem;
+            font-weight: 900;
+            letter-spacing: 0;
+            text-transform: uppercase;
+        }
+
+        .auth-lore h1 {
+            max-width: 560px;
+            margin: 16px 0 18px;
+            color: var(--rift-cream);
+            font-size: clamp(3rem, 7vw, 6.6rem);
+            font-weight: 950;
+            line-height: 0.94;
+        }
+
+        .auth-lore p {
+            max-width: 520px;
+            color: #c8e5ee;
+            font-size: 1.04rem;
+            line-height: 1.9;
+        }
+
+        .auth-stat-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 28px;
+        }
+
+        .auth-stat-row span {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 38px;
+            padding: 7px 12px;
+            border: 1px solid rgba(35, 232, 255, 0.34);
+            color: #eaffff;
+            background: rgba(0, 0, 0, 0.24);
+            font-weight: 800;
+        }
+
+        .poro-orbit {
+            position: relative;
+            z-index: 1;
+            margin: 34px auto 0;
+            width: 184px;
+            height: 184px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(35, 232, 255, 0.17), transparent 68%);
+            animation: floatPoro 5s ease-in-out infinite;
+        }
+
+        .poro {
+            position: relative;
+            width: 112px;
+            height: 98px;
+            border-radius: 48% 48% 44% 44%;
+            background: #fff4df;
+            border: 4px solid #32dff0;
+            box-shadow: 0 14px 30px rgba(35, 232, 255, 0.22);
+        }
+
+        .poro::before,
+        .poro::after {
+            content: "";
+            position: absolute;
+            top: -8px;
+            width: 24px;
+            height: 26px;
+            background: #caa978;
+            border-radius: 65% 35% 45% 55%;
+            border: 3px solid #9a7848;
+        }
+
+        .poro::before {
+            left: 12px;
+            transform: rotate(-38deg);
+        }
+
+        .poro::after {
+            right: 12px;
+            transform: rotate(38deg) scaleX(-1);
+        }
+
+        .poro-eye {
+            position: absolute;
+            top: 35px;
+            width: 12px;
+            height: 15px;
+            border-radius: 50%;
+            background: #10233a;
+        }
+
+        .poro-eye.left {
+            left: 31px;
+        }
+
+        .poro-eye.right {
+            right: 31px;
+        }
+
+        .poro-nose {
+            position: absolute;
+            top: 52px;
+            left: 50%;
+            width: 14px;
+            height: 10px;
+            border-radius: 50%;
+            background: #6d4f42;
+            transform: translateX(-50%);
+        }
+
+        .poro-tongue {
+            position: absolute;
+            left: 50%;
+            bottom: 13px;
+            width: 22px;
+            height: 24px;
+            border-radius: 0 0 16px 16px;
+            background: #ff777f;
+            transform: translateX(-50%);
+        }
+
+        .auth-card {
+            position: relative;
+            padding: 34px;
+            border: 1px solid rgba(35, 232, 255, 0.46);
+            background:
+                linear-gradient(180deg, var(--rift-panel-strong), var(--rift-panel)),
+                repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 18px);
+            box-shadow:
+                0 28px 90px rgba(0, 0, 0, 0.54),
+                0 0 0 1px rgba(216, 182, 92, 0.1) inset;
+        }
+
+        .auth-card::after {
+            content: "";
+            position: absolute;
+            right: -1px;
+            bottom: -1px;
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, transparent 0 50%, var(--rift-cyan) 51%);
+            opacity: 0.8;
+        }
+
+        .auth-card-header {
+            margin-bottom: 26px;
+        }
+
+        .auth-card-header h2 {
+            margin: 7px 0 8px;
+            color: #ffffff;
+            font-size: 2.1rem;
+            font-weight: 950;
+        }
+
+        .auth-card-header p {
+            margin: 0;
+            color: var(--rift-muted);
+            line-height: 1.7;
+        }
+
+        .auth-alert {
+            border-radius: 0;
+            border: 1px solid rgba(255, 90, 108, 0.48);
+            background: rgba(255, 90, 108, 0.16);
+            color: #ffd6dc;
+        }
+
+        .auth-success {
+            border-color: rgba(99, 255, 193, 0.5);
+            background: rgba(99, 255, 193, 0.14);
+            color: #c9ffe8;
+        }
+
+        .form-label {
+            color: var(--rift-cyan);
+            font-size: 0.86rem;
+            font-weight: 900;
+        }
+
+        .auth-input {
+            min-height: 52px;
+            color: #ffffff;
+            border-radius: 0;
+            border: 1px solid rgba(162, 188, 198, 0.4);
+            background: rgba(255, 255, 255, 0.075);
+        }
+
+        .auth-input:focus {
+            color: #ffffff;
+            border-color: var(--rift-cyan);
+            background: rgba(35, 232, 255, 0.08);
+            box-shadow: 0 0 0 0.18rem rgba(35, 232, 255, 0.16);
+        }
+
+        .auth-input::placeholder {
+            color: rgba(220, 239, 246, 0.48);
+        }
+
+        .auth-submit {
+            min-height: 54px;
+            border-radius: 0;
+            border: 1px solid rgba(35, 232, 255, 0.85);
+            background: linear-gradient(135deg, #18d5f0, #9ee996);
+            color: #031017;
+            font-weight: 950;
+            box-shadow: 0 18px 38px rgba(35, 232, 255, 0.2);
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .auth-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 22px 44px rgba(35, 232, 255, 0.28);
+        }
+
+        .auth-switch {
+            margin-top: 18px;
+            color: var(--rift-muted);
+        }
+
+        .auth-switch a {
+            color: var(--rift-gold);
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .auth-switch a:hover {
+            color: var(--rift-cream);
+        }
+
+        @@keyframes floatPoro {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-12px);
+            }
+        }
+
+        @@media (max-width: 980px) {
+            .auth-shell {
+                grid-template-columns: 1fr;
+                padding-top: 92px;
+            }
+
+            .auth-lore {
+                min-height: 420px;
+            }
+        }
+
+        @@media (max-width: 560px) {
+            .auth-shell {
+                width: min(100% - 24px, 1180px);
+            }
+
+            .auth-lore,
+            .auth-card {
+                padding: 24px;
+            }
+
+            .poro-orbit {
+                margin-top: 28px;
+            }
         }
     </style>
 </head>
 <body>
-
-    <a href="/" class="btn btn-link text-info text-decoration-none position-absolute top-0 start-0 m-4">
-    <i class="bi bi-arrow-left-circle fs-3 align-middle me-2"></i>
-    <span class="fs-5 align-middle fw-bold">返回主畫面</span>
+    <a href="/" class="back-link">
+        <i class="bi bi-arrow-left"></i>
+        返回基地
     </a>
 
-    <div class="login-card">
-        <div class="text-center mb-4">
-            <i class="bi bi-hexagon-half text-info" style="font-size: 3rem;"></i>
-            <h3 class="mt-2 fw-bold">Peng's System</h3>
-            <p class="text-light opacity-75">請登入以繼續操作</p>
-        </div>
+    <main class="auth-shell">
+        <section class="auth-lore" aria-label="網站介紹">
+            <div class="auth-kicker">ARAM MAYHEM COMMAND CENTER</div>
+            <h1>回到你的配裝基地</h1>
+            <p>
+                登入後可以保存 AI 推薦、裝備組合與個人查詢紀錄，讓下次大亂鬥選到同樣英雄與海克斯時更快找到方向。
+            </p>
+            <div class="auth-stat-row" aria-label="功能摘要">
+                <span><i class="bi bi-stars"></i>AI 推薦</span>
+                <span><i class="bi bi-gem"></i>海克斯知識庫</span>
+                <span><i class="bi bi-box-seam"></i>裝備組合</span>
+            </div>
+            <div class="poro-orbit" aria-hidden="true">
+                <div class="poro">
+                    <span class="poro-eye left"></span>
+                    <span class="poro-eye right"></span>
+                    <span class="poro-nose"></span>
+                    <span class="poro-tongue"></span>
+                </div>
+            </div>
+        </section>
 
-        @if (TempData["SuccessMsg"] != null)
-        {
-            <div class="alert alert-success py-2 text-center fw-bold" role="alert">
-                @TempData["SuccessMsg"]
+        <section class="auth-card" aria-label="登入表單">
+            <div class="auth-card-header">
+                <div class="auth-kicker">SUMMONER LOGIN</div>
+                <h2>登入帳號</h2>
+                <p>輸入帳號密碼，繼續管理你的 ARAM Mayhem 推薦資料。</p>
             </div>
-        }
 
-        @if (ViewBag.Error != null)
-        {
-            <div class="alert alert-danger py-2 text-center" role="alert">
-                <i class="bi bi-exclamation-triangle-fill me-1"></i> @ViewBag.Error
-            </div>
-        }
+            @if (TempData["SuccessMsg"] != null)
+            {
+                <div class="alert auth-success py-2 fw-bold" role="alert">
+                    <i class="bi bi-check-circle-fill me-1"></i> @TempData["SuccessMsg"]
+                </div>
+            }
 
-        <form asp-action="Login" method="post">
-            <div class="mb-3">
-                <label class="form-label text-info"><i class="bi bi-person me-1"></i>使用者帳號</label>
-                <input type="text" name="username" class="form-control form-control-lg" required autocomplete="off" placeholder="帳號輸入">
-            </div>
-            <div class="mb-4">
-                <label class="form-label text-info"><i class="bi bi-key me-1"></i>密碼</label>
-                <input type="password" name="password" class="form-control form-control-lg" required placeholder="密碼輸入">
-            </div>
-            <button type="submit" class="btn btn-info w-100 btn-lg text-white fw-bold">
-                登入系統 <i class="bi bi-box-arrow-in-right ms-1"></i>
-            </button>
-      
-            <div class="text-center">
-                <span class="text-white-50">還沒有帳號嗎？</span>
-                <a asp-action="Register" class="text-success text-decoration-none fw-bold ms-1">立即註冊</a>
-            </div>
-        </form>
-    </div>
+            @if (ViewBag.Error != null)
+            {
+                <div class="alert auth-alert py-2" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> @ViewBag.Error
+                </div>
+            }
 
+            <form asp-action="Login" method="post">
+                <div class="mb-3">
+                    <label class="form-label" for="username">
+                        <i class="bi bi-person-badge me-1"></i>使用者帳號
+                    </label>
+                    <input id="username" type="text" name="username" class="form-control auth-input" required autocomplete="username" placeholder="輸入你的召喚師代號">
+                </div>
+                <div class="mb-4">
+                    <label class="form-label" for="password">
+                        <i class="bi bi-shield-lock me-1"></i>密碼
+                    </label>
+                    <input id="password" type="password" name="password" class="form-control auth-input" required autocomplete="current-password" placeholder="輸入通行密碼">
+                </div>
+                <button type="submit" class="btn auth-submit w-100">
+                    進入基地 <i class="bi bi-box-arrow-in-right ms-1"></i>
+                </button>
+
+                <div class="auth-switch text-center">
+                    還沒有帳號？
+                    <a asp-action="Register">建立新的玩家檔案</a>
+                </div>
+            </form>
+        </section>
+    </main>
 </body>
 </html>

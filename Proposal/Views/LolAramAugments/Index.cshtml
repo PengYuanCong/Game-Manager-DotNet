@@ -1,0 +1,1706 @@
+@model IReadOnlyList<Proposal.Models.LolAramAugment>
+
+@{
+    ViewData["Title"] = "海克斯知識庫";
+    var isAdmin = User.IsInRole("Admin");
+    var currentFilter = ViewData["CurrentFilter"]?.ToString();
+    var selectedRarity = ViewData["CurrentRarity"]?.ToString();
+    var selectedSeries = ViewData["CurrentSeries"]?.ToString();
+    var selectedTag = ViewData["CurrentTag"]?.ToString();
+    var pickMode = ViewData["PickMode"]?.ToString();
+    var pickStage = ViewData["PickStage"]?.ToString();
+    var pickSlot = ViewData["PickSlot"] as int?;
+    var isPickMode = string.Equals(pickMode, "augment", StringComparison.OrdinalIgnoreCase);
+    var seriesOptions = new[]
+    {
+        new { Value = "snowday", Text = "雪球" },
+        new { Value = "self_destruct", Text = "自爆" },
+        new { Value = "stackosaurus", Text = "堆疊暴龍" },
+        new { Value = "low_health_ally", Text = "嗚咿嗚咿" },
+        new { Value = "archmage", Text = "大法師" },
+        new { Value = "automation", Text = "自動化" },
+        new { Value = "high_roller", Text = "土豪賭客" },
+        new { Value = "coinrain", Text = "錢如雨下" },
+        new { Value = "firecracker", Text = "爆竹" }
+    };
+    var tagFilters = new[]
+    {
+        new { Value = "burn", Text = "燃燒", Icon = "bi-fire" },
+        new { Value = "firecracker", Text = "爆竹", Icon = "bi-stars" },
+        new { Value = "self_destruct", Text = "自爆", Icon = "bi-exclamation-octagon" },
+        new { Value = "stackosaurus", Text = "堆疊暴龍", Icon = "bi-bar-chart-steps" },
+        new { Value = "low_health_ally", Text = "嗚咿嗚咿", Icon = "bi-heart-pulse" },
+        new { Value = "automation", Text = "自動化", Icon = "bi-cpu" },
+        new { Value = "high_roller", Text = "土豪賭客", Icon = "bi-dice-5" },
+        new { Value = "coinrain", Text = "錢如雨下", Icon = "bi-coin" },
+        new { Value = "healing", Text = "治療", Icon = "bi-heart-pulse" },
+        new { Value = "shield", Text = "護盾", Icon = "bi-shield-check" },
+        new { Value = "magic_damage", Text = "魔法傷害", Icon = "bi-stars" },
+        new { Value = "physical_damage", Text = "物理傷害", Icon = "bi-crosshair" },
+        new { Value = "true_damage", Text = "真實傷害", Icon = "bi-bullseye" },
+        new { Value = "ability_haste", Text = "技能急速", Icon = "bi-lightning-charge" },
+        new { Value = "movement_speed", Text = "跑速", Icon = "bi-wind" },
+        new { Value = "crowd_control", Text = "控制", Icon = "bi-hand-index-thumb" },
+        new { Value = "missile", Text = "飛彈", Icon = "bi-rocket-takeoff" },
+        new { Value = "multi_hit", Text = "多段", Icon = "bi-layers" },
+        new { Value = "tank", Text = "生命 / 坦度", Icon = "bi-shield-fill" },
+        new { Value = "team_support", Text = "團隊增益", Icon = "bi-people" }
+    };
+    var setEffects = new[]
+    {
+        new { Key = "snowday", Name = "雪球", Max = "MAX 4", Icon = "bi-snow2", Effect = "提升雪球類強化符文的技能急速以及傷害。\n(2) +50 技能急速，30% 傷害提升。\n(3) +100 技能急速，50% 傷害提升。\n(4) +150 技能急速，100% 傷害提升。" },
+        new { Key = "self_destruct", Name = "自爆", Max = "MAX 2", Icon = "bi-exclamation-octagon", Effect = "(2) 使你的復活倒數計時減少 25%。" },
+        new { Key = "stackosaurus", Name = "堆疊暴龍", Max = "MAX 4", Icon = "bi-bar-chart-steps", Effect = "在你疊層時，獲得額外層數。\n(2) 獲得額外的 50% 層數。\n(3) 獲得額外的 100% 層數。\n(4) 獲得額外的 200% 層數。" },
+        new { Key = "low_health_ally", Name = "嗚咿嗚咿", Max = "MAX 3", Icon = "bi-heart-pulse", Effect = "朝著低於 50% 生命值友軍時獲得額外效果。\n(2) 獲得 50% 移動速度。\n(3) 你的下一個治療或護盾回復目標的 12% 已損失生命值。（每個目標有 10 秒冷卻時間）" },
+        new { Key = "archmage", Name = "大法師", Max = "MAX 2", Icon = "bi-magic", Effect = "每當你施放一個技能時，返還另一個隨機技能的冷卻時間，數額相當於該次施放技能的一定百分比的冷卻時間。\n(2) 返還 30%。" },
+        new { Key = "automation", Name = "自動化", Max = "MAX 3", Icon = "bi-cpu", Effect = "(2) 將自動施放的冷卻時間縮短 30%。\n(3) 自動施放冷卻時間受益於技能急速。" },
+        new { Key = "high_roller", Name = "土豪賭客", Max = "MAX 4", Icon = "bi-dice-5", Effect = "(2) 小兵在陣亡時有機率掉落一個屬性加成。\n(3) +20% 機率獲得黃金階或稜彩階鍛造器。\n(4) +50% 機率獲得黃金階或稜彩階鍛造器。" },
+        new { Key = "coinrain", Name = "錢如雨下", Max = "MAX 4", Icon = "bi-coin", Effect = "參與擊殺敵人後，該敵人將掉落一些錢幣。\n(2) 參與擊殺敵人後掉落 6 枚錢幣。\n(3) 參與擊殺敵人後掉落 12 枚錢幣。\n(4) 每枚錢幣價值 5 金，並且僅能被強化符文的持有者及其友方英雄拾取。" },
+        new { Key = "firecracker", Name = "爆竹", Max = "MAX 4", Icon = "bi-fire", Effect = "爆竹彈跳額外的次數至相距最近的敵人並造成其一部分原傷害。\n(2) 2 次彈跳，造成 25% 原傷害。\n(4) 3 次彈跳，造成 50% 原傷害。" }
+    };
+
+    static string DisplayMode(string value)
+    {
+        return value switch
+        {
+            "ARAM Mayhem" => "隨機單中大亂鬥",
+            _ => string.IsNullOrWhiteSpace(value) ? "未設定" : value
+        };
+    }
+
+    static string DisplayRarity(string? value)
+    {
+        return value?.Trim().ToLowerInvariant() switch
+        {
+            "prismatic" or "稜彩" or "稜彩階" or "彩色" => "稜彩階",
+            "gold" or "黃金" or "黃金階" or "金色" => "黃金階",
+            "silver" or "白銀" or "白銀階" or "白色" => "白銀階",
+            "unknown" => "未知",
+            "" or null => "未知",
+            _ => value!
+        };
+    }
+
+    static string RarityClass(string? value)
+    {
+        return value?.Trim().ToLowerInvariant() switch
+        {
+            "prismatic" or "稜彩" or "稜彩階" or "彩色" => "rarity-prismatic",
+            "gold" or "黃金" or "黃金階" or "金色" => "rarity-gold",
+            "silver" or "白銀" or "白銀階" or "白色" => "rarity-silver",
+            _ => "rarity-unknown"
+        };
+    }
+
+    static string DisplaySeries(string? value)
+    {
+        return value?.Trim().ToLowerInvariant() switch
+        {
+            "firecracker" or "爆竹" or "爆竹系列" => "爆竹系列",
+            "stackosaurus" or "stacking_dino" or "堆疊暴龍" or "堆疊暴龍系列" => "堆疊暴龍系列",
+            "snowday" or "下雪天" or "下雪天系列" or "雪球" or "雪球系列" => "雪球系列",
+            "self_destruct" or "divebomb" or "自爆" or "自爆系列" or "俯衝炸彈" or "俯衝炸彈系列" => "自爆系列",
+            "low_health_ally" or "ping" or "嗚咿嗚咿" or "嗚咿嗚咿系列" or "喂喂喂喂" or "喂喂喂喂系列" => "嗚咿嗚咿系列",
+            "archmage" or "大法師" or "大法師系列" => "大法師系列",
+            "automation" or "auto_cast" or "自動化" or "自動化系列" or "完全自動化" or "完全自動化系列" => "自動化系列",
+            "high_roller" or "dice" or "土豪賭客" or "土豪賭客系列" or "擲骰狂人" or "擲骰狂人系列" => "土豪賭客系列",
+            "coinrain" or "coin_rain" or "錢如雨下" or "錢如雨下系列" or "金幣雨" or "金幣雨系列" => "錢如雨下系列",
+            "" or null => "無系列",
+            _ => value!
+        };
+    }
+
+    static string SeriesClass(string? value)
+    {
+        return value?.Trim().ToLowerInvariant() switch
+        {
+            "firecracker" or "爆竹" or "爆竹系列" => "series-firecracker",
+            "stackosaurus" or "stacking_dino" or "堆疊暴龍" or "堆疊暴龍系列" => "series-stack",
+            "snowday" or "下雪天" or "下雪天系列" or "雪球" or "雪球系列" => "series-snow",
+            "self_destruct" or "divebomb" or "自爆" or "自爆系列" or "俯衝炸彈" or "俯衝炸彈系列" => "series-bomb",
+            "low_health_ally" or "ping" or "嗚咿嗚咿" or "嗚咿嗚咿系列" or "喂喂喂喂" or "喂喂喂喂系列" => "series-ping",
+            "archmage" or "大法師" or "大法師系列" => "series-arcane",
+            "automation" or "auto_cast" or "自動化" or "自動化系列" or "完全自動化" or "完全自動化系列" => "series-auto",
+            "high_roller" or "dice" or "土豪賭客" or "土豪賭客系列" or "擲骰狂人" or "擲骰狂人系列" => "series-dice",
+            "dragonflame" or "神龍烈焰" or "神龍烈焰系列" => "series-flame",
+            "coinrain" or "coin_rain" or "錢如雨下" or "錢如雨下系列" or "金幣雨" or "金幣雨系列" => "series-coin",
+            _ => "series-none"
+        };
+    }
+
+    static string DisplayTag(string value)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ability_haste"] = "技能加速",
+            ["armor"] = "護甲",
+            ["attack"] = "普攻",
+            ["burn"] = "燃燒",
+            ["critical"] = "暴擊",
+            ["crowd_control"] = "控場",
+            ["damage_over_time"] = "持續傷害",
+            ["firecracker"] = "爆竹",
+            ["gold"] = "錢如雨下",
+            ["healing"] = "治療",
+            ["health"] = "生命",
+            ["magic_damage"] = "魔法傷害",
+            ["magic_resist"] = "魔防",
+            ["tank"] = "坦度",
+            ["mana"] = "法力",
+            ["missile"] = "導彈",
+            ["movement_speed"] = "跑速",
+            ["multi_hit"] = "多段命中",
+            ["opgg_imported"] = "OP.GG 匯入",
+            ["physical_damage"] = "物理傷害",
+            ["revive"] = "自爆",
+            ["shield"] = "護盾",
+            ["self_destruct"] = "自爆",
+            ["slow"] = "緩速",
+            ["stackosaurus"] = "堆疊暴龍",
+            ["stacking"] = "堆疊暴龍",
+            ["team_support"] = "團隊增益",
+            ["true_damage"] = "真實傷害",
+            ["ultimate"] = "大絕",
+            ["area"] = "範圍",
+            ["scaling"] = "堆疊暴龍",
+            ["auto_cast"] = "自動化",
+            ["automation"] = "自動化",
+            ["coin_drop"] = "錢如雨下",
+            ["coinrain"] = "錢如雨下",
+            ["anvil"] = "土豪賭客",
+            ["low_health_ally"] = "嗚咿嗚咿",
+            ["cooldown_refund"] = "返還冷卻",
+            ["high_roller"] = "土豪賭客"
+        };
+
+        return map.TryGetValue(value.Trim(), out var label) ? label : value.Trim();
+    }
+
+    static string TagClass(string value)
+    {
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "burn" or "燃燒" or "damage_over_time" or "持續傷害" or "firecracker" or "爆竹" or "self_destruct" or "自爆" => "tag-warm",
+            "magic_damage" or "魔法傷害" or "mana" or "法力" or "ability_haste" or "技能加速" or "missile" or "導彈" or "cooldown_refund" or "返還冷卻" or "ultimate" or "大絕" => "tag-magic",
+            "healing" or "治療" or "shield" or "護盾" or "team_support" or "團隊增益" or "low_health_ally" or "嗚咿嗚咿" or "低血量友軍" => "tag-support",
+            "attack" or "普攻" or "critical" or "暴擊" or "physical_damage" or "物理傷害" or "multi_hit" or "多段命中" => "tag-attack",
+            "tank" or "坦度" or "health" or "生命" or "armor" or "護甲" or "magic_resist" or "魔防" => "tag-tank",
+            "movement_speed" or "跑速" or "crowd_control" or "控場" or "slow" or "緩速" or "auto_cast" or "automation" or "自動化" or "自動施放" => "tag-utility",
+            "stacking" or "疊層" or "scaling" or "成長" or "stackosaurus" or "堆疊暴龍" => "tag-stack",
+            "gold" or "金幣" or "coin_drop" or "coinrain" or "錢如雨下" or "掉落金幣" or "anvil" or "鍛造器" or "high_roller" or "土豪賭客" => "tag-gold",
+            _ => "tag-default"
+        };
+    }
+
+    static IReadOnlyList<string> SplitValues(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? Array.Empty<string>()
+            : value.Split(new[] { ';', ',', '，', '、' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    static IReadOnlyList<string> BuildImageUrls(Proposal.Models.LolAramAugment augment)
+    {
+        var urls = new List<string>();
+        AddDirectImageUrl(urls, augment.Notes);
+        AddDirectImageUrl(urls, augment.SourceUrl);
+
+        var imageNames = new List<string>();
+        AddImageName(imageNames, ExtractOpGgImageName(augment.Notes));
+        AddImageName(imageNames, ExtractOpGgImageName(augment.SourceUrl));
+
+        var mappedImageName = FindKnownImageName(augment);
+        AddImageName(imageNames, mappedImageName);
+
+        foreach (var candidate in BuildImageNameCandidates(augment.AugmentKey))
+        {
+            AddImageName(imageNames, candidate);
+        }
+
+        foreach (var imageName in imageNames.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            urls.Add(BuildOpGgImageUrl(imageName));
+        }
+
+        return urls.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    static string ExtractOpGgImageName(string? notes)
+    {
+        if (string.IsNullOrWhiteSpace(notes))
+        {
+            return string.Empty;
+        }
+
+        var pathIndex = notes.IndexOf("aram-augment/", StringComparison.OrdinalIgnoreCase);
+        if (pathIndex >= 0)
+        {
+            var value = notes[(pathIndex + "aram-augment/".Length)..].Trim();
+            var endIndex = value.IndexOfAny(new[] { '?', '&', ' ', '。', '；', ';', '\r', '\n', '"' });
+            return endIndex >= 0 ? value[..endIndex].Trim() : value;
+        }
+
+        var markers = new[] { "OP.GG 圖片代碼：", "圖片代碼：", "image:", "Image:" };
+        foreach (var marker in markers)
+        {
+            var index = notes.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (index < 0)
+            {
+                continue;
+            }
+
+            var value = notes[(index + marker.Length)..].Trim();
+            var endIndex = value.IndexOfAny(new[] { ' ', '。', '；', ';', '\r', '\n' });
+            return endIndex >= 0 ? value[..endIndex].Trim() : value;
+        }
+
+        return string.Empty;
+    }
+
+    static string FindKnownImageName(Proposal.Models.LolAramAugment augment)
+    {
+        var key = augment.AugmentKey.Trim().ToLowerInvariant();
+        var name = augment.Name.Trim();
+        var known = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["magic_missile"] = "MagicMissile_large.Kiwi.png",
+            ["魔法導彈"] = "MagicMissile_large.Kiwi.png",
+            ["vampired"] = "Vampired_large.png",
+            ["吸血迷信"] = "Vampired_large.png",
+            ["critical_missile"] = "CriticalMissile_large.png",
+            ["暴擊沖天炮"] = "CriticalMissile_large.png",
+            ["execute"] = "SpiritualPurification_large.png",
+            ["處刑者"] = "SpiritualPurification_large.png",
+            ["grandma_spicy_oil"] = "GrandmasChiliOil_large.png",
+            ["grandmas_chili_oil"] = "GrandmasChiliOil_large.png",
+            ["阿嬤的辣油"] = "GrandmasChiliOil_large.png",
+            ["extremely_evil"] = "ARAM_PhenomenalEvil_large.png",
+            ["aram_phenomenal_evil"] = "ARAM_PhenomenalEvil_large.png",
+            ["極度邪惡"] = "ARAM_PhenomenalEvil_large.png",
+            ["jeweled_gauntlet"] = "JeweledGauntlet_large.png",
+            ["寶石手套"] = "JeweledGauntlet_large.png",
+            ["thread_the_needle"] = "ThreadTheNeedle_large.png",
+            ["穿針引線"] = "ThreadTheNeedle_large.png",
+            ["slap_around"] = "SlapAround_large.png",
+            ["pain_train"] = "SlapAround_large.png",
+            ["痛打一頓"] = "SlapAround_large.png",
+            ["shrink_engine"] = "ShrinkEngine_large.png",
+            ["縮小引擎"] = "ShrinkEngine_large.png",
+            ["tank_engine"] = "TankEngine_large.png",
+            ["坦克引擎"] = "TankEngine_large.png",
+            ["giant_slayer"] = "GiantSlayer_large.png",
+            ["巨人殺手"] = "GiantSlayer_large.png",
+            ["soul_eater"] = "SoulEater_large.png",
+            ["souleater"] = "SoulEater_large.png",
+            ["食魂者"] = "SoulEater_large.png",
+            ["witchful_thinking"] = "WitchfulThinking_large.png",
+            ["女巫思維"] = "WitchfulThinking_large.png",
+            ["bloodletter"] = "Bloodletter_large.png",
+            ["飲血"] = "Bloodletter_large.png",
+            ["void_rift"] = "VoidRift_large.png",
+            ["虛空裂縫"] = "VoidRift_large.png",
+            ["flashy"] = "Flashy_large.png",
+            ["靈光一閃"] = "Flashy_large.png",
+            ["typhoon"] = "Typhoon_large.png",
+            ["颱風"] = "Typhoon_large.png",
+            ["infernal_conduit"] = "InfernalConduit_large.png",
+            ["煉獄使者"] = "InfernalConduit_large.png",
+            ["overflow"] = "Overflow_large.png",
+            ["溢流"] = "Overflow_large.png"
+        };
+
+        if (known.TryGetValue(key, out var imageName) || known.TryGetValue(name, out imageName))
+        {
+            return imageName;
+        }
+
+        return string.Empty;
+    }
+
+    static IEnumerable<string> BuildImageNameCandidates(string key)
+    {
+        var pascal = ToPascalCase(key);
+        if (string.IsNullOrWhiteSpace(pascal))
+        {
+            yield break;
+        }
+
+        yield return $"{pascal}_large.png";
+        yield return $"ARAM_{pascal}_large.png";
+        yield return $"{pascal}_large.Kiwi.png";
+    }
+
+    static string ToPascalCase(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Any(ch => ch > 127))
+        {
+            return string.Empty;
+        }
+
+        var parts = value.Split(new[] { '_', '-', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return string.Concat(parts.Select(part => char.ToUpperInvariant(part[0]) + part[1..].ToLowerInvariant()));
+    }
+
+    static void AddImageName(List<string> imageNames, string? imageName)
+    {
+        if (string.IsNullOrWhiteSpace(imageName))
+        {
+            return;
+        }
+
+        imageName = imageName.Trim();
+        if (!imageName.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+        {
+            imageName += ".png";
+        }
+
+        imageNames.Add(imageName);
+    }
+
+    static void AddDirectImageUrl(List<string> urls, string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        foreach (var part in text.Split(new[] { ' ', '\r', '\n', ';', '；' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var value = part.Trim('。', '"', '\'');
+            if (value.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                && value.Contains("/aram-augment/", StringComparison.OrdinalIgnoreCase))
+            {
+                urls.Add(value);
+            }
+        }
+    }
+
+    static string BuildOpGgImageUrl(string imageName)
+    {
+        return $"https://opgg-static.akamaized.net/meta/images/lol/latest/aram-augment/{imageName}?image=q_auto%3Agood%2Cf_png%2Cw_120&v=1779191455";
+    }
+
+}
+
+<div class="container-fluid px-4 augment-page">
+    <div class="augment-hero mb-4">
+        <div class="augment-title-panel">
+            <div class="section-kicker">ARAM Mayhem Arsenal</div>
+            <h2 class="m-0">海克斯 RAG 知識庫</h2>
+            <p>依稀有度、套裝與屬性快速檢索，給 AI 推薦與玩家選擇海克斯時使用。</p>
+        </div>
+
+        <div class="augment-control-panel">
+            <form asp-action="Index" method="get" class="augment-search" id="augmentSearchForm">
+                <div class="augment-search-grid">
+                    @if (isPickMode)
+                    {
+                        <input type="hidden" name="pick" value="augment" />
+                        <input type="hidden" name="stage" value="@pickStage" />
+                        <input type="hidden" name="slot" value="@pickSlot" />
+                    }
+                    <input type="text" name="searchString" value="@currentFilter" class="form-control text-bg-dark border-secondary" placeholder="搜尋名稱、代碼、套裝或屬性" />
+                    @if (!string.IsNullOrWhiteSpace(selectedTag))
+                    {
+                        <input type="hidden" name="tag" value="@selectedTag" />
+                    }
+                    <select name="rarity" class="form-select text-bg-dark border-secondary" aria-label="依顏色篩選">
+                        <option value="" selected="@string.IsNullOrWhiteSpace(selectedRarity)">全部顏色</option>
+                        <option value="prismatic" selected="@(selectedRarity == "prismatic")">稜彩階</option>
+                        <option value="gold" selected="@(selectedRarity == "gold")">黃金階</option>
+                        <option value="silver" selected="@(selectedRarity == "silver")">白銀階</option>
+                    </select>
+                    <select name="seriesKey" class="form-select text-bg-dark border-secondary" aria-label="依套裝系列篩選">
+                        <option value="" selected="@string.IsNullOrWhiteSpace(selectedSeries)">全部套裝</option>
+                        @foreach (var option in seriesOptions)
+                        {
+                            <option value="@option.Value" selected="@(selectedSeries == option.Value)">@option.Text</option>
+                        }
+                    </select>
+                    <button class="btn btn-outline-info augment-search-button" type="submit">
+                        <i class="bi bi-search"></i> 搜尋
+                    </button>
+                    @if (!string.IsNullOrWhiteSpace(currentFilter) || !string.IsNullOrWhiteSpace(selectedRarity) || !string.IsNullOrWhiteSpace(selectedSeries) || !string.IsNullOrWhiteSpace(selectedTag))
+                    {
+                        <a asp-action="Index"
+                           asp-route-pick="@(isPickMode ? "augment" : null)"
+                           asp-route-stage="@(isPickMode ? pickStage : null)"
+                           asp-route-slot="@(isPickMode ? pickSlot : null)"
+                           class="btn btn-outline-secondary"
+                           title="清除搜尋">
+                            <i class="bi bi-x-lg"></i>
+                        </a>
+                    }
+                </div>
+            </form>
+
+            <div class="augment-tag-drawer" id="augmentTagDrawer">
+                <button
+                    type="button"
+                    class="tag-drawer-toggle"
+                    id="augmentTagToggle"
+                    aria-controls="augmentTagPanel"
+                    aria-expanded="false">
+                    <i class="bi bi-chevron-right"></i>
+                    <span>屬性</span>
+                </button>
+                <div class="augment-tag-panel" id="augmentTagPanel" aria-label="海克斯標籤快速搜尋">
+                    @for (var tagIndex = 0; tagIndex < tagFilters.Length; tagIndex++)
+                    {
+                        var tag = tagFilters[tagIndex];
+                        var isActiveTag = selectedTag == tag.Value;
+                        <a asp-action="Index"
+                           asp-route-searchString="@currentFilter"
+                           asp-route-rarity="@selectedRarity"
+                           asp-route-seriesKey="@selectedSeries"
+                           asp-route-tag="@tag.Value"
+                           asp-route-pick="@(isPickMode ? "augment" : null)"
+                           asp-route-stage="@(isPickMode ? pickStage : null)"
+                           asp-route-slot="@(isPickMode ? pickSlot : null)"
+                           class="tag-filter-button @TagClass(tag.Value) @(isActiveTag ? "active" : "")"
+                           style="--tag-i:@tagIndex">
+                            <i class="bi @tag.Icon"></i>@tag.Text
+                        </a>
+                    }
+                </div>
+            </div>
+
+            @if (isAdmin)
+            {
+                <div class="augment-actions">
+                    <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#opGgImportModal">
+                        <i class="bi bi-cloud-download me-1"></i>從 OP.GG 匯入
+                    </button>
+                    <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#importAugmentsModal">
+                        <i class="bi bi-upload me-1"></i>匯入檔案
+                    </button>
+                    <a asp-action="Create" class="btn btn-info text-dark fw-bold">
+                        <i class="bi bi-plus-circle me-1"></i>新增海克斯
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show text-bg-success border-0" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show text-bg-danger border-0" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!isAdmin)
+    {
+        <div class="alert alert-secondary border-0 mb-4" role="alert">
+            <i class="bi bi-lock-fill me-2"></i>一般使用者只能瀏覽海克斯知識庫，匯入與編輯功能僅限管理員使用。
+        </div>
+    }
+
+    @if (isPickMode)
+    {
+        <div class="pick-mode-banner">
+            <i class="bi bi-cursor-fill me-2"></i>
+            點選海克斯卡片後，會放進目前階段的第 @((pickSlot ?? 0) + 1) 個選項並返回 AI 推薦頁。
+            <a asp-controller="AiRecommendation" asp-action="Index" class="btn btn-outline-info btn-sm ms-auto">
+                <i class="bi bi-arrow-left me-1"></i>回 AI 推薦
+            </a>
+        </div>
+    }
+
+    <section id="augmentResults">
+        <div class="d-flex align-items-center justify-content-between mb-3 gap-3">
+            <div>
+                <div class="section-kicker">@Model.Count 筆資料</div>
+                <h5 class="m-0">海克斯列表</h5>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(currentFilter))
+            {
+                <span class="badge rounded-pill text-bg-info text-dark">搜尋：@currentFilter</span>
+            }
+            @if (!string.IsNullOrWhiteSpace(selectedRarity))
+            {
+                <span class="badge rounded-pill text-bg-warning text-dark">顏色：@DisplayRarity(selectedRarity)</span>
+            }
+            @if (!string.IsNullOrWhiteSpace(selectedSeries))
+            {
+                <span class="badge rounded-pill text-bg-secondary">套裝：@DisplaySeries(selectedSeries)</span>
+            }
+            @if (!string.IsNullOrWhiteSpace(selectedTag))
+            {
+                <span class="badge rounded-pill text-bg-info text-dark">屬性：@DisplayTag(selectedTag)</span>
+            }
+        </div>
+
+        @if (Model.Count == 0)
+        {
+            <div class="empty-state">
+                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                目前沒有符合條件的海克斯資料。
+            </div>
+        }
+        else
+        {
+            <div class="augment-grid">
+                @foreach (var augment in Model)
+                {
+                    var imageUrls = BuildImageUrls(augment);
+                    var imageCandidates = string.Join("|", imageUrls);
+                    var tags = SplitValues(augment.Tags)
+                        .Select(DisplayTag)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    <article class="augment-card @RarityClass(augment.Rarity) @(isPickMode ? "pick-card" : "")"
+                             data-pick-card="@(isPickMode ? "augment" : null)"
+                             data-augment-name="@augment.Name"
+                             data-augment-rarity="@DisplayRarity(augment.Rarity)"
+                             data-pick-stage="@pickStage"
+                             data-pick-slot="@pickSlot"
+                             tabindex="@(isPickMode ? "0" : null)"
+                             role="@(isPickMode ? "button" : null)"
+                             aria-label="@(isPickMode ? $"選擇 {augment.Name}" : null)">
+                        @if (isPickMode)
+                        {
+                            <div class="pick-card-ribbon">
+                                <i class="bi bi-mouse2-fill me-1"></i>選擇並返回
+                            </div>
+                        }
+                        <div class="augment-card-top">
+                            <div class="augment-icon">
+                                @if (imageUrls.Count > 0)
+                                {
+                                    <img
+                                        src="@imageUrls[0]"
+                                        alt="@augment.Name"
+                                        loading="lazy"
+                                        referrerpolicy="no-referrer"
+                                        data-image-index="0"
+                                        data-image-candidates="@imageCandidates"
+                                        onerror="const c=(this.dataset.imageCandidates||'').split('|').filter(Boolean); const i=(Number(this.dataset.imageIndex)||0)+1; if(i<c.length){this.dataset.imageIndex=i; this.src=c[i];} else {this.classList.add('d-none'); this.nextElementSibling.classList.remove('d-none');}" />
+                                    <i class="bi bi-stars d-none"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-stars"></i>
+                                }
+                            </div>
+                            <div class="min-w-0">
+                                <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                    <span class="rarity-badge @RarityClass(augment.Rarity)">@DisplayRarity(augment.Rarity)</span>
+                                    @if (!string.IsNullOrWhiteSpace(augment.Tier))
+                                    {
+                                        <span class="tier-badge">@augment.Tier</span>
+                                    }
+                                </div>
+                                <h3>@augment.Name</h3>
+                                <div class="small text-secondary text-truncate" title="@augment.AugmentKey">@augment.AugmentKey</div>
+                            </div>
+                        </div>
+
+                        <p class="augment-effect">@augment.EffectText</p>
+
+                        <div class="augment-meta">
+                            <span class="series-badge @SeriesClass(augment.SeriesKey)">
+                                <i class="bi bi-diagram-3"></i>@DisplaySeries(augment.SeriesKey)
+                            </span>
+                            <span class="mode-badge">@DisplayMode(augment.ModeName)</span>
+                        </div>
+
+                        <div class="tag-list">
+                            @if (tags.Count == 0)
+                            {
+                                <span class="tag-pill tag-default">未標記</span>
+                            }
+                            else
+                            {
+                                foreach (var tag in tags)
+                                {
+                                    <span class="tag-pill @TagClass(tag)">@tag</span>
+                                }
+                            }
+                        </div>
+
+                        <div class="augment-card-footer">
+                            <span class="small text-secondary">@augment.PatchVersion</span>
+                            <div class="d-flex gap-2">
+                                <a asp-action="Details" asp-route-id="@augment.Id" class="icon-action" title="查看">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                @if (isAdmin)
+                                {
+                                    <a asp-action="Edit" asp-route-id="@augment.Id" class="icon-action action-edit" title="編輯">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form asp-action="Delete" asp-route-id="@augment.Id" method="post" onsubmit="return confirm('確定要刪除這筆海克斯資料嗎？');">
+                                        <button type="submit" class="icon-action action-delete" title="刪除">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </section>
+
+    <div class="set-assist" id="setAssist" style="left: calc(100vw - 92px); top: calc(50vh - 32px);">
+        <div class="set-assist-orbit">
+            @for (var index = 0; index < setEffects.Length; index++)
+            {
+                var item = setEffects[index];
+                <button
+                    type="button"
+                    class="set-orbit-button"
+                    style="--i:@index"
+                    data-set-name="@item.Name"
+                    data-set-max="@item.Max"
+                    data-set-effect="@item.Effect"
+                    title="@item.Name">
+                    <span class="set-orbit-icon"><i class="bi @item.Icon"></i></span>
+                    <span class="set-orbit-label">@item.Name</span>
+                </button>
+            }
+        </div>
+        <button type="button" class="set-assist-main" id="setAssistToggle" aria-label="套裝效果" aria-expanded="false">
+            <span class="poro-mark" aria-hidden="true">
+                <span class="poro-horn poro-horn-left"></span>
+                <span class="poro-horn poro-horn-right"></span>
+                <span class="poro-eye poro-eye-left"></span>
+                <span class="poro-eye poro-eye-right"></span>
+                <span class="poro-nose"></span>
+                <span class="poro-tongue"></span>
+            </span>
+        </button>
+    </div>
+
+    <div class="modal fade" id="setEffectModal" tabindex="-1" data-bs-theme="dark">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content set-effect-modal">
+                <div class="modal-header border-secondary">
+                    <div>
+                        <div class="section-kicker" id="setEffectMax">MAX</div>
+                        <h5 class="modal-title" id="setEffectTitle">套裝效果</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="setEffectText" class="set-effect-text mb-0"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isAdmin)
+    {
+        <div class="modal fade" id="opGgImportModal" tabindex="-1" data-bs-theme="dark">
+            <div class="modal-dialog">
+                <div class="modal-content border-info shadow-lg">
+                    <div class="modal-header bg-info text-dark">
+                        <h5 class="modal-title fw-bold">
+                            <i class="bi bi-cloud-download me-2"></i>從 OP.GG 匯入海克斯
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form asp-action="ImportFromOpGg" method="post">
+                        <div class="modal-body">
+                            <label for="opGgSourceUrl" class="form-label text-info fw-bold">OP.GG ARAM Mayhem 頁面</label>
+                            <input
+                                type="url"
+                                id="opGgSourceUrl"
+                                name="sourceUrl"
+                                class="form-control text-bg-dark border-secondary"
+                                value="https://op.gg/zh-tw/lol/modes/aram-mayhem"
+                                required />
+                            <div class="form-text text-secondary mt-2">
+                                會抓取公開頁面中的海克斯名稱、效果文字、OP.GG 評級與推薦英雄，並轉成 RAG 可使用的資料。
+                            </div>
+                            <div class="alert alert-info border-0 mt-3 mb-0">
+                                匯入時會用 OP.GG 圖片代碼作為海克斯代碼，同名或同代碼資料會更新，不會重複新增。
+                            </div>
+                        </div>
+                        <div class="modal-footer border-top border-secondary">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="submit" class="btn btn-info text-dark fw-bold">
+                                <i class="bi bi-cloud-download me-1"></i>開始匯入
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="importAugmentsModal" tabindex="-1" data-bs-theme="dark">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content border-warning shadow-lg">
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title fw-bold">
+                            <i class="bi bi-upload me-2"></i>匯入海克斯資料
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form asp-action="Import" method="post" enctype="multipart/form-data">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="importFile" class="form-label text-info fw-bold">JSON 或 CSV 檔案</label>
+                                <input type="file" id="importFile" name="importFile" class="form-control text-bg-dark border-secondary" accept=".json,.csv" required />
+                            </div>
+
+                            <div class="alert alert-secondary border-0 mb-3">
+                                系統會用 <code>AugmentKey + ModeName</code> 判斷是否為同一筆資料。沒有填代碼時，會依照名稱自動產生。
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <h6 class="text-warning">CSV 欄位範例</h6>
+                                    <code class="d-block text-light small">
+                                        AugmentKey,Name,Rarity,Tier,SeriesKey,EffectText,Tags,SynergyNotes,PatchVersion,SourceUrl,Notes
+                                    </code>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-warning">JSON 範例</h6>
+                                    <pre class="text-light small bg-black border border-secondary rounded p-2 mb-0">[
+  {
+    "augmentKey": "grandma_spicy_oil",
+    "name": "阿嬤的辣油",
+    "rarity": "prismatic",
+    "tier": "S",
+    "seriesKey": null,
+    "effectText": "施加燃燒時產生辣油區域。",
+    "tags": "burn; healing; area; stackosaurus"
+  }
+]</pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer border-top border-secondary">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="submit" class="btn btn-warning text-dark fw-bold">
+                                <i class="bi bi-upload me-1"></i>開始匯入
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Styles {
+<style>
+    .augment-page {
+        color: #edf7f7;
+        max-width: 1800px;
+        margin: 0 auto;
+    }
+
+    .augment-hero {
+        display: grid;
+        grid-template-columns: minmax(320px, 0.72fr) minmax(620px, 1.28fr);
+        gap: 20px;
+        align-items: center;
+        min-height: 230px;
+        padding: 20px;
+        border: 1px solid rgba(37, 215, 232, 0.22);
+        background:
+            linear-gradient(110deg, rgba(5, 15, 24, 0.96) 0%, rgba(7, 18, 28, 0.88) 52%, rgba(10, 26, 36, 0.72) 100%),
+            url('/images/守岸.jpg') center / cover no-repeat;
+        box-shadow: inset 0 0 0 1px rgba(255, 211, 101, 0.05), 0 22px 54px rgba(0, 0, 0, 0.28);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .augment-hero::after {
+        content: "";
+        position: absolute;
+        inset: auto 0 0 0;
+        height: 3px;
+        background: linear-gradient(90deg, #25d7e8, #d4af37, transparent);
+        opacity: 0.82;
+    }
+
+    .augment-title-panel,
+    .augment-control-panel {
+        position: relative;
+        z-index: 1;
+    }
+
+    .augment-title-panel {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    .augment-hero h2 {
+        color: #25d7e8;
+        font-weight: 800;
+        font-size: clamp(2rem, 4vw, 3.35rem);
+        text-shadow: 0 0 28px rgba(37, 215, 232, 0.24);
+    }
+
+    .augment-title-panel p {
+        max-width: 560px;
+        margin: 0;
+        color: #b8c8d1;
+        line-height: 1.7;
+    }
+
+    .section-kicker {
+        color: #25d7e8;
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+    }
+
+    .augment-control-panel {
+        align-self: center;
+        display: grid;
+        align-content: start;
+        grid-auto-rows: max-content;
+        gap: 12px;
+        min-height: 0;
+        padding: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(4, 12, 19, 0.76);
+        backdrop-filter: blur(8px);
+    }
+
+    .augment-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .augment-search-grid {
+        display: grid;
+        grid-template-columns: minmax(190px, 1fr) 128px 148px minmax(78px, auto) auto;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .augment-search-button {
+        min-width: 78px;
+        white-space: nowrap;
+    }
+
+    .augment-tag-drawer {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        align-self: start;
+        justify-self: start;
+        height: auto;
+        max-height: max-content;
+        width: fit-content;
+        max-width: 100%;
+        min-width: 0;
+        min-height: 38px;
+        overflow: hidden;
+        padding: 3px;
+        border: 1px solid rgba(37, 215, 232, 0.22);
+        background: linear-gradient(90deg, rgba(37, 215, 232, 0.09), rgba(7, 15, 22, 0.38));
+    }
+
+    .augment-tag-drawer.open {
+        width: min(100%, 1040px);
+    }
+
+    .tag-drawer-toggle {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        min-height: 36px;
+        padding: 7px 12px;
+        color: #06111c;
+        background: #25d7e8;
+        border: 1px solid rgba(37, 215, 232, 0.8);
+        border-radius: 999px;
+        font-weight: 900;
+        box-shadow: 0 10px 24px rgba(37, 215, 232, 0.14);
+        transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+    }
+
+    .tag-drawer-toggle:hover {
+        transform: translateX(2px);
+        background: #7cf1ff;
+    }
+
+    .tag-drawer-toggle i {
+        transition: transform 180ms ease;
+    }
+
+    .augment-tag-drawer.open .tag-drawer-toggle i {
+        transform: rotate(180deg);
+    }
+
+    .augment-tag-panel {
+        display: none;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        align-self: center;
+        padding: 1px 0;
+        min-width: 0;
+        max-width: 0;
+        opacity: 0;
+        pointer-events: none;
+        overflow: hidden;
+        transform: translateX(-18px);
+        transition: max-width 260ms ease, opacity 160ms ease, transform 220ms cubic-bezier(.2,.85,.3,1.12);
+    }
+
+    .augment-tag-drawer.open .augment-tag-panel {
+        display: flex;
+        max-width: calc(100% - 92px);
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(0);
+    }
+
+    .tag-filter-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 34px;
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: 800;
+        text-decoration: none;
+        opacity: 0;
+        transform: translateX(-14px) scale(0.96);
+        transition:
+            opacity 150ms ease,
+            transform 190ms cubic-bezier(.2,.85,.3,1.16),
+            border-color 150ms ease,
+            background-color 150ms ease,
+            box-shadow 150ms ease;
+        transition-delay: 0ms;
+    }
+
+    .augment-tag-drawer.open .tag-filter-button {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+        transition-delay: calc(var(--tag-i) * 18ms);
+    }
+
+    .tag-filter-button:hover,
+    .tag-filter-button.active {
+        transform: translateY(-1px) scale(1.02);
+        border-color: #25d7e8;
+        box-shadow: 0 0 0 1px rgba(37, 215, 232, 0.32), 0 8px 18px rgba(0, 0, 0, 0.24);
+    }
+
+    .empty-state {
+        border: 1px solid rgba(69, 214, 224, 0.24);
+        background: rgba(4, 15, 26, 0.72);
+        color: #8ea5ae;
+        padding: 48px 20px;
+        text-align: center;
+    }
+
+    .augment-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 14px;
+    }
+
+    .augment-card {
+        position: relative;
+        min-height: 256px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px;
+        background: linear-gradient(145deg, rgba(5, 18, 31, 0.96), rgba(6, 24, 35, 0.86));
+        border: 1px solid rgba(33, 187, 198, 0.34);
+        border-radius: 4px;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+        overflow: hidden;
+        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .augment-card:hover {
+        transform: translateY(-7px) scale(1.014);
+        border-color: rgba(37, 215, 232, 0.74);
+        box-shadow: 0 20px 42px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 211, 101, 0.08);
+        animation: cardHop 520ms cubic-bezier(.2, 1.35, .34, 1);
+    }
+
+    .augment-card.pick-card {
+        cursor: pointer;
+        outline: 1px solid rgba(37, 215, 232, 0.2);
+    }
+
+    .augment-card.pick-card:focus-visible {
+        outline: 3px solid rgba(37, 215, 232, 0.9);
+        outline-offset: 3px;
+    }
+
+    .pick-card-ribbon {
+        position: absolute;
+        right: 14px;
+        top: 14px;
+        z-index: 3;
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 9px;
+        color: #06121a;
+        background: linear-gradient(135deg, #25d7e8, #ffe082);
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 900;
+        box-shadow: 0 10px 22px rgba(37, 215, 232, 0.24);
+    }
+
+    .pick-mode-banner {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        padding: 12px 14px;
+        color: #dffbff;
+        background: rgba(37, 215, 232, 0.1);
+        border: 1px solid rgba(37, 215, 232, 0.34);
+        border-radius: 8px;
+        box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+    }
+
+    @@keyframes cardHop {
+        0% { transform: translateY(0) scale(1); }
+        48% { transform: translateY(-9px) scale(1.02); }
+        72% { transform: translateY(-5px) scale(1.01); }
+        100% { transform: translateY(-7px) scale(1.014); }
+    }
+
+    .augment-card::after {
+        content: "";
+        position: absolute;
+        right: -1px;
+        bottom: -1px;
+        width: 28px;
+        height: 28px;
+        background: linear-gradient(135deg, transparent 50%, #062736 50%);
+        border-left: 1px solid rgba(33, 187, 198, 0.25);
+    }
+
+    .augment-card.rarity-prismatic {
+        border-color: rgba(198, 128, 255, 0.62);
+    }
+
+    .augment-card.rarity-gold {
+        border-color: rgba(224, 184, 91, 0.62);
+    }
+
+    .augment-card.rarity-silver {
+        border-color: rgba(185, 205, 218, 0.55);
+    }
+
+    .augment-card-top {
+        display: grid;
+        grid-template-columns: 58px minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+    }
+
+    .augment-icon {
+        width: 58px;
+        height: 58px;
+        display: grid;
+        place-items: center;
+        background: #07111d;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 4px;
+        color: #25d7e8;
+        font-size: 1.35rem;
+        overflow: hidden;
+    }
+
+    .augment-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .augment-card h3 {
+        margin: 0;
+        font-size: 1.05rem;
+        line-height: 1.3;
+        font-weight: 800;
+        color: #fff;
+        overflow-wrap: anywhere;
+    }
+
+    .augment-effect {
+        flex: 1;
+        margin: 0;
+        color: #cbd7dc;
+        font-size: 0.92rem;
+        line-height: 1.55;
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .augment-meta,
+    .tag-list,
+    .augment-card-footer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .augment-card-footer {
+        justify-content: space-between;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding-top: 12px;
+    }
+
+    .rarity-badge,
+    .tier-badge,
+    .series-badge,
+    .mode-badge,
+    .tag-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        min-height: 24px;
+        border-radius: 3px;
+        padding: 3px 8px;
+        font-size: 0.74rem;
+        font-weight: 800;
+        line-height: 1.2;
+    }
+
+    .rarity-prismatic {
+        color: #f1dcff;
+        background: rgba(142, 82, 187, 0.55);
+        border: 1px solid rgba(223, 173, 255, 0.5);
+    }
+
+    .rarity-gold {
+        color: #fff0c4;
+        background: rgba(137, 105, 39, 0.58);
+        border: 1px solid rgba(224, 184, 91, 0.54);
+    }
+
+    .rarity-silver {
+        color: #f2fbff;
+        background: rgba(112, 130, 143, 0.52);
+        border: 1px solid rgba(190, 215, 226, 0.5);
+    }
+
+    .rarity-unknown,
+    .mode-badge,
+    .tier-badge {
+        color: #d9f9ff;
+        background: rgba(37, 215, 232, 0.12);
+        border: 1px solid rgba(37, 215, 232, 0.35);
+    }
+
+    .series-firecracker { color: #ffe0c8; background: rgba(180, 74, 31, 0.38); border: 1px solid rgba(255, 143, 79, 0.46); }
+    .series-stack { color: #d8ffd7; background: rgba(49, 125, 63, 0.32); border: 1px solid rgba(121, 222, 135, 0.44); }
+    .series-snow { color: #dff9ff; background: rgba(58, 129, 160, 0.36); border: 1px solid rgba(141, 226, 255, 0.44); }
+    .series-bomb { color: #ffe6f3; background: rgba(141, 52, 103, 0.34); border: 1px solid rgba(236, 132, 188, 0.42); }
+    .series-ping { color: #e5e0ff; background: rgba(79, 69, 150, 0.35); border: 1px solid rgba(158, 149, 255, 0.42); }
+    .series-arcane { color: #eaf2ff; background: rgba(57, 86, 158, 0.34); border: 1px solid rgba(121, 165, 255, 0.42); }
+    .series-auto { color: #ddfff5; background: rgba(38, 121, 111, 0.34); border: 1px solid rgba(105, 222, 204, 0.42); }
+    .series-dice { color: #f5e4ff; background: rgba(126, 62, 142, 0.34); border: 1px solid rgba(220, 138, 238, 0.42); }
+    .series-flame { color: #ffe9ce; background: rgba(159, 65, 35, 0.38); border: 1px solid rgba(255, 134, 75, 0.46); }
+    .series-coin { color: #fff2bd; background: rgba(143, 122, 37, 0.36); border: 1px solid rgba(231, 204, 88, 0.46); }
+    .series-none { color: #b6cad2; background: rgba(118, 136, 143, 0.18); border: 1px solid rgba(142, 165, 174, 0.25); }
+
+    .tag-warm { color: #ffe3d2; background: rgba(191, 75, 40, 0.25); border: 1px solid rgba(245, 115, 73, 0.32); }
+    .tag-magic { color: #ded8ff; background: rgba(86, 73, 184, 0.25); border: 1px solid rgba(154, 137, 255, 0.32); }
+    .tag-support { color: #ddfff4; background: rgba(31, 130, 104, 0.25); border: 1px solid rgba(90, 224, 181, 0.32); }
+    .tag-attack { color: #ffe4ed; background: rgba(157, 54, 91, 0.25); border: 1px solid rgba(235, 120, 160, 0.32); }
+    .tag-tank { color: #d8ebff; background: rgba(44, 96, 145, 0.25); border: 1px solid rgba(104, 169, 231, 0.32); }
+    .tag-utility { color: #f1ffd4; background: rgba(104, 135, 39, 0.25); border: 1px solid rgba(184, 224, 91, 0.32); }
+    .tag-stack { color: #d8ffd7; background: rgba(48, 125, 63, 0.25); border: 1px solid rgba(121, 222, 135, 0.32); }
+    .tag-gold { color: #fff1bd; background: rgba(143, 111, 37, 0.26); border: 1px solid rgba(231, 190, 88, 0.35); }
+    .tag-default { color: #d1dde2; background: rgba(124, 145, 153, 0.18); border: 1px solid rgba(159, 181, 190, 0.25); }
+
+    .icon-action {
+        width: 34px;
+        height: 34px;
+        display: inline-grid;
+        place-items: center;
+        color: #e9fbff;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 4px;
+        text-decoration: none;
+    }
+
+    button.icon-action {
+        padding: 0;
+    }
+
+    .icon-action:hover {
+        color: #07111d;
+        background: #25d7e8;
+        border-color: #25d7e8;
+    }
+
+    .action-edit:hover {
+        background: #8de2ff;
+    }
+
+    .action-delete:hover {
+        color: #fff;
+        background: #dc3545;
+        border-color: #dc3545;
+    }
+
+    .set-assist {
+        position: fixed;
+        z-index: 1080;
+        width: 64px;
+        height: 64px;
+        touch-action: none;
+    }
+
+    .set-assist-orbit {
+        position: absolute;
+        right: 72px;
+        bottom: -6px;
+        width: min(300px, calc(100vw - 116px));
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid rgba(37, 215, 232, 0.28);
+        background: linear-gradient(145deg, rgba(4, 14, 24, 0.97), rgba(8, 28, 39, 0.94));
+        box-shadow: 0 20px 48px rgba(0, 0, 0, 0.44);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(18px) scale(0.96);
+        transform-origin: right bottom;
+        transition: opacity 170ms ease, transform 220ms cubic-bezier(.2,.85,.3,1.1);
+    }
+
+    .set-assist.open .set-assist-orbit {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(0) scale(1);
+    }
+
+    .set-assist-orbit::before {
+        content: "套裝效果";
+        position: absolute;
+        right: 10px;
+        top: -27px;
+        padding: 3px 9px;
+        color: #ffdf72;
+        background: rgba(4, 14, 24, 0.96);
+        border: 1px solid rgba(255, 211, 101, 0.42);
+        font-size: 0.75rem;
+        font-weight: 900;
+    }
+
+    .set-assist-main,
+    .set-orbit-button {
+        width: 56px;
+        height: 56px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        color: #041018;
+        background: #25d7e8;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+    }
+
+    .set-assist-main {
+        position: absolute;
+        inset: 4px;
+        font-size: 1.2rem;
+        cursor: grab;
+        overflow: visible;
+        background:
+            radial-gradient(circle at 50% 45%, #fff7df 0 43%, transparent 44%),
+            radial-gradient(circle at 50% 50%, #25d7e8 0 68%, #067d95 69% 100%);
+        border-color: rgba(255, 238, 179, 0.75);
+        box-shadow: 0 0 0 4px rgba(37, 215, 232, 0.14), 0 16px 42px rgba(0, 0, 0, 0.42);
+    }
+
+    .set-assist-main::before,
+    .set-assist-main::after {
+        content: "";
+        position: absolute;
+        inset: -5px;
+        border: 1px solid rgba(37, 215, 232, 0.28);
+        border-radius: 50%;
+        opacity: 0;
+        transform: scale(0.86);
+        transition: transform 220ms ease, opacity 220ms ease;
+    }
+
+    .set-assist-main::after {
+        inset: -10px;
+        border-color: rgba(255, 211, 101, 0.22);
+    }
+
+    .set-assist.open .set-assist-main::before,
+    .set-assist.open .set-assist-main::after {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    .set-assist.dragging .set-assist-main {
+        cursor: grabbing;
+    }
+
+    .set-orbit-button {
+        position: relative;
+        inset: auto;
+        width: 100%;
+        height: 62px;
+        border-radius: 6px;
+        opacity: 0;
+        pointer-events: none;
+        grid-template-rows: 1fr auto;
+        gap: 2px;
+        color: #dffbff;
+        background:
+            linear-gradient(145deg, rgba(4, 18, 30, 0.98), rgba(8, 36, 51, 0.94));
+        border-color: rgba(37, 215, 232, 0.45);
+        transform: translateX(12px) scale(0.95);
+        transition: transform 190ms cubic-bezier(.2,.85,.3,1.12), opacity 160ms ease, background 180ms ease, border-color 180ms ease;
+        transition-delay: 0ms;
+    }
+
+    .set-orbit-button:hover {
+        background:
+            radial-gradient(circle at 50% 34%, rgba(255, 255, 255, 0.18), transparent 46%),
+            linear-gradient(145deg, rgba(18, 76, 95, 0.98), rgba(7, 31, 45, 0.95));
+        border-color: rgba(255, 211, 101, 0.65);
+        transform: translateY(-2px) scale(1.02);
+    }
+
+    .set-assist.open .set-orbit-button {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(0) scale(1);
+        transition-delay: calc(var(--i) * 20ms);
+    }
+
+    .set-orbit-icon {
+        width: 24px;
+        height: 24px;
+        display: grid;
+        place-items: center;
+        margin-top: 6px;
+        color: #7ff2ff;
+        font-size: 1rem;
+    }
+
+    .set-orbit-label {
+        max-width: 50px;
+        color: #f6fbff;
+        font-size: 0.62rem;
+        font-weight: 800;
+        line-height: 1;
+        white-space: nowrap;
+        transform: translateY(-4px);
+    }
+
+    .poro-mark {
+        position: relative;
+        width: 38px;
+        height: 36px;
+        display: block;
+        border-radius: 48% 48% 42% 42%;
+        background: #fff8e5;
+        box-shadow: inset 0 -5px 0 rgba(180, 148, 102, 0.22);
+    }
+
+    .poro-horn {
+        position: absolute;
+        top: -8px;
+        width: 14px;
+        height: 15px;
+        border-radius: 12px 12px 2px 12px;
+        background: #c6a477;
+        box-shadow: inset 0 -3px 0 rgba(95, 67, 46, 0.22);
+    }
+
+    .poro-horn-left {
+        left: -3px;
+        transform: rotate(-34deg);
+    }
+
+    .poro-horn-right {
+        right: -3px;
+        transform: scaleX(-1) rotate(-34deg);
+    }
+
+    .poro-eye {
+        position: absolute;
+        top: 13px;
+        width: 5px;
+        height: 7px;
+        border-radius: 50%;
+        background: #18242d;
+    }
+
+    .poro-eye-left {
+        left: 10px;
+    }
+
+    .poro-eye-right {
+        right: 10px;
+    }
+
+    .poro-nose {
+        position: absolute;
+        left: 50%;
+        top: 20px;
+        width: 8px;
+        height: 5px;
+        border-radius: 50%;
+        background: #7b4a45;
+        transform: translateX(-50%);
+    }
+
+    .poro-tongue {
+        position: absolute;
+        left: 50%;
+        bottom: -3px;
+        width: 9px;
+        height: 10px;
+        border-radius: 0 0 8px 8px;
+        background: #f28f93;
+        transform: translateX(-50%);
+    }
+
+    .set-effect-modal {
+        border: 1px solid rgba(37, 215, 232, 0.35);
+        background: #06111c;
+    }
+
+    .set-effect-text {
+        color: #d9e7ea;
+        white-space: pre-line;
+        line-height: 1.65;
+    }
+
+    @@media (max-width: 1199px) {
+        .augment-hero {
+            grid-template-columns: 1fr;
+        }
+
+        .augment-search-grid {
+            grid-template-columns: minmax(220px, 1fr) 128px 148px minmax(78px, auto) auto;
+        }
+
+        .augment-actions {
+            justify-content: flex-start;
+        }
+    }
+
+    @@media (max-width: 575px) {
+        .augment-search-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .augment-tag-drawer {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .augment-tag-drawer.open {
+            width: 100%;
+        }
+
+        .augment-tag-drawer.open .augment-tag-panel {
+            max-width: 100%;
+        }
+
+        .augment-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .set-assist {
+            left: auto !important;
+            right: 14px;
+            top: auto !important;
+            bottom: 16px;
+        }
+
+        .set-assist-orbit {
+            right: 0;
+            bottom: 72px;
+            width: min(286px, calc(100vw - 28px));
+        }
+    }
+</style>
+}
+
+@section Scripts {
+<script>
+    (() => {
+        const form = document.getElementById('augmentSearchForm');
+        if (form) {
+            form.addEventListener('submit', () => {
+                form.action = `${window.location.pathname}#augmentResults`;
+            });
+        }
+
+        if (window.location.search) {
+            document.getElementById('augmentResults')?.scrollIntoView({ block: 'start' });
+        }
+
+        const tagDrawer = document.getElementById('augmentTagDrawer');
+        const tagToggle = document.getElementById('augmentTagToggle');
+        tagToggle?.addEventListener('click', () => {
+            const isOpen = tagDrawer?.classList.toggle('open') ?? false;
+            tagToggle.setAttribute('aria-expanded', String(isOpen));
+        });
+
+        const assist = document.getElementById('setAssist');
+        const toggle = document.getElementById('setAssistToggle');
+        const modalElement = document.getElementById('setEffectModal');
+        const modal = modalElement ? new bootstrap.Modal(modalElement) : null;
+        const title = document.getElementById('setEffectTitle');
+        const max = document.getElementById('setEffectMax');
+        const text = document.getElementById('setEffectText');
+        let pointerId = null;
+        let originX = 0;
+        let originY = 0;
+        let startLeft = 0;
+        let startTop = 0;
+        let moved = false;
+
+        const clamp = (value, min, maxValue) => Math.max(min, Math.min(value, maxValue));
+        const toggleAssist = () => {
+            const isOpen = assist.classList.toggle('open');
+            toggle.setAttribute('aria-expanded', String(isOpen));
+        };
+
+        toggle?.addEventListener('pointerdown', event => {
+            pointerId = event.pointerId;
+            originX = event.clientX;
+            originY = event.clientY;
+            const rect = assist.getBoundingClientRect();
+            startLeft = rect.left;
+            startTop = rect.top;
+            moved = false;
+            assist.classList.add('dragging');
+            toggle.setPointerCapture(pointerId);
+        });
+
+        toggle?.addEventListener('pointermove', event => {
+            if (pointerId !== event.pointerId) {
+                return;
+            }
+
+            const dx = event.clientX - originX;
+            const dy = event.clientY - originY;
+            if (Math.abs(dx) + Math.abs(dy) > 6) {
+                moved = true;
+            }
+
+            const nextLeft = clamp(startLeft + dx, 12, window.innerWidth - 76);
+            const nextTop = clamp(startTop + dy, 76, window.innerHeight - 76);
+            assist.style.left = `${nextLeft}px`;
+            assist.style.top = `${nextTop}px`;
+        });
+
+        toggle?.addEventListener('pointerup', event => {
+            if (pointerId === event.pointerId) {
+                toggle.releasePointerCapture(pointerId);
+                pointerId = null;
+                assist.classList.remove('dragging');
+
+                if (!moved) {
+                    toggleAssist();
+                }
+
+                moved = false;
+            }
+        });
+
+        toggle?.addEventListener('click', event => {
+            event.preventDefault();
+        });
+
+        document.querySelectorAll('.set-orbit-button').forEach(button => {
+            button.addEventListener('click', () => {
+                title.textContent = button.dataset.setName || '套裝效果';
+                max.textContent = button.dataset.setMax || '';
+                text.textContent = button.dataset.setEffect || '';
+                assist.classList.remove('open');
+                toggle?.setAttribute('aria-expanded', 'false');
+                modal?.show();
+            });
+        });
+
+        const returnUrl = '@Url.Action("Index", "AiRecommendation")';
+        const draftKey = 'aramAiRecommendationDraft';
+        const stageLabels = {
+            opening: '開局三選一',
+            level7: '7 等三選一',
+            level11: '11 等三選一',
+            level15: '15 等三選一'
+        };
+        const pickCards = Array.from(document.querySelectorAll('[data-pick-card="augment"]'));
+
+        const readDraft = () => {
+            try {
+                return JSON.parse(sessionStorage.getItem(draftKey) || '{}');
+            } catch {
+                return {};
+            }
+        };
+
+        const chooseAugment = (card) => {
+            const stage = card.dataset.pickStage || 'opening';
+            const rawSlot = Number(card.dataset.pickSlot ?? 0);
+            const slot = Number.isFinite(rawSlot) ? Math.max(0, Math.min(rawSlot, 2)) : 0;
+            const draft = readDraft();
+            draft.augmentStages ??= {};
+            draft.augmentStages[stage] ??= ['', '', ''];
+            draft.augmentStages[stage][slot] = card.dataset.augmentName || '';
+            draft.augmentChoiceRarities ??= {};
+            draft.augmentChoiceRarities[stage] ??= ['', '', ''];
+            draft.augmentChoiceRarities[stage][slot] = card.dataset.augmentRarity || '';
+            draft.currentStage = stageLabels[stage] || draft.currentStage || '';
+            sessionStorage.setItem(draftKey, JSON.stringify(draft));
+            window.location.href = returnUrl;
+        };
+
+        for (const card of pickCards) {
+            card.addEventListener('click', event => {
+                if (event.target.closest('a, button, form, input, select, textarea')) {
+                    return;
+                }
+
+                chooseAugment(card);
+            });
+
+            card.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    chooseAugment(card);
+                }
+            });
+        }
+    })();
+</script>
+}

@@ -1,0 +1,247 @@
+@model Proposal.Models.LolAramAugment
+
+@{
+    ViewData["Title"] = "海克斯知識內容";
+
+    static string TextOrDash(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "-" : value;
+    }
+
+    static IReadOnlyList<string> SplitValues(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? Array.Empty<string>()
+            : value.Split(new[] { ';', ',', '，', '、' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    static string DisplayRarity(string? value)
+    {
+        return value?.Trim().ToLowerInvariant() switch
+        {
+            "prismatic" or "稜彩" or "稜彩階" or "彩色" => "稜彩階",
+            "gold" or "黃金" or "黃金階" or "金色" => "黃金階",
+            "silver" or "白銀" or "白銀階" or "白色" => "白銀階",
+            _ => TextOrDash(value)
+        };
+    }
+
+    static string DisplaySeries(string? value)
+    {
+        return value?.Trim().ToLowerInvariant() switch
+        {
+            "firecracker" or "爆竹" or "爆竹系列" => "爆竹系列",
+            "stackosaurus" or "stacking_dino" or "堆疊暴龍" or "堆疊暴龍系列" => "堆疊暴龍系列",
+            "snowday" or "下雪天" or "下雪天系列" or "雪球" or "雪球系列" => "雪球系列",
+            "self_destruct" or "divebomb" or "自爆" or "自爆系列" or "俯衝炸彈" or "俯衝炸彈系列" => "自爆系列",
+            "low_health_ally" or "ping" or "嗚咿嗚咿" or "嗚咿嗚咿系列" or "喂喂喂喂" or "喂喂喂喂系列" => "嗚咿嗚咿系列",
+            "archmage" or "大法師" or "大法師系列" => "大法師系列",
+            "automation" or "auto_cast" or "自動化" or "自動化系列" or "完全自動化" or "完全自動化系列" => "自動化系列",
+            "high_roller" or "dice" or "土豪賭客" or "土豪賭客系列" or "擲骰狂人" or "擲骰狂人系列" => "土豪賭客系列",
+            "coinrain" or "coin_rain" or "錢如雨下" or "錢如雨下系列" or "金幣雨" or "金幣雨系列" => "錢如雨下系列",
+            "" or null => "無系列",
+            _ => value!
+        };
+    }
+
+    static string DisplayTag(string value)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ability_haste"] = "技能加速",
+            ["armor"] = "護甲",
+            ["attack"] = "普攻",
+            ["burn"] = "燃燒",
+            ["critical"] = "暴擊",
+            ["crowd_control"] = "控場",
+            ["damage_over_time"] = "持續傷害",
+            ["firecracker"] = "爆竹",
+            ["gold"] = "錢如雨下",
+            ["healing"] = "治療",
+            ["health"] = "生命",
+            ["magic_damage"] = "魔法傷害",
+            ["magic_resist"] = "魔防",
+            ["mana"] = "法力",
+            ["missile"] = "導彈",
+            ["movement_speed"] = "跑速",
+            ["multi_hit"] = "多段命中",
+            ["opgg_imported"] = "OP.GG 匯入",
+            ["physical_damage"] = "物理傷害",
+            ["shield"] = "護盾",
+            ["stackosaurus"] = "堆疊暴龍",
+            ["stacking"] = "堆疊暴龍",
+            ["team_support"] = "團隊增益",
+            ["true_damage"] = "真實傷害",
+            ["ultimate"] = "大絕",
+            ["area"] = "範圍",
+            ["scaling"] = "堆疊暴龍",
+            ["auto_cast"] = "自動化",
+            ["automation"] = "自動化",
+            ["coin_drop"] = "錢如雨下",
+            ["coinrain"] = "錢如雨下",
+            ["anvil"] = "土豪賭客",
+            ["low_health_ally"] = "嗚咿嗚咿",
+            ["self_destruct"] = "自爆",
+            ["revive"] = "自爆",
+            ["high_roller"] = "土豪賭客"
+        };
+
+        return map.TryGetValue(value.Trim(), out var label) ? label : value.Trim();
+    }
+
+    static string TagClass(string value)
+    {
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "burn" or "燃燒" or "damage_over_time" or "持續傷害" or "firecracker" or "爆竹" or "self_destruct" or "自爆" => "tag-warm",
+            "magic_damage" or "魔法傷害" or "mana" or "法力" or "ability_haste" or "技能加速" or "missile" or "導彈" or "ultimate" or "大絕" => "tag-magic",
+            "healing" or "治療" or "shield" or "護盾" or "team_support" or "團隊增益" or "low_health_ally" or "嗚咿嗚咿" => "tag-support",
+            "attack" or "普攻" or "critical" or "暴擊" or "physical_damage" or "物理傷害" or "multi_hit" or "多段命中" => "tag-attack",
+            "health" or "生命" or "armor" or "護甲" or "magic_resist" or "魔防" => "tag-tank",
+            "movement_speed" or "跑速" or "crowd_control" or "控場" or "auto_cast" or "automation" or "自動化" => "tag-utility",
+            "stacking" or "疊層" or "scaling" or "成長" or "stackosaurus" or "堆疊暴龍" => "tag-stack",
+            "gold" or "金幣" or "coin_drop" or "coinrain" or "錢如雨下" or "anvil" or "high_roller" or "土豪賭客" => "tag-gold",
+            _ => "tag-default"
+        };
+    }
+
+    static string DisplayNote(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "-";
+        }
+
+        var text = value.Trim()
+            .Replace("OP.GG recommended champions:", "OP.GG 推薦英雄：", StringComparison.OrdinalIgnoreCase)
+            .Replace("Inferred series:", "推論系列：", StringComparison.OrdinalIgnoreCase)
+            .Replace("firecracker", "爆竹系列", StringComparison.OrdinalIgnoreCase)
+            .Replace("stackosaurus", "堆疊暴龍系列", StringComparison.OrdinalIgnoreCase)
+            .Replace("stacking_dino", "堆疊暴龍系列", StringComparison.OrdinalIgnoreCase);
+
+        return text;
+    }
+}
+
+<div class="container-fluid px-4 augment-page">
+    <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center mb-4 gap-3">
+        <div>
+            <h2 class="text-info m-0">
+                <i class="bi bi-stars me-2"></i>@Model.Name
+            </h2>
+            <div class="text-secondary mt-1">key:@Model.AugmentKey · @Model.ModeName</div>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-info">
+                <i class="bi bi-pencil me-1"></i>編輯
+            </a>
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>返回列表
+            </a>
+        </div>
+    </div>
+
+    <section class="augment-panel border border-secondary rounded p-4 mb-4">
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <span class="badge border border-warning text-warning">@DisplayRarity(Model.Rarity)</span>
+            @if (!string.IsNullOrWhiteSpace(Model.Tier))
+            {
+                <span class="badge text-bg-info">@Model.Tier</span>
+            }
+            <span class="badge border border-light text-light">套裝：@DisplaySeries(Model.SeriesKey)</span>
+            <span class="badge border border-info text-info">@Model.PatchVersion</span>
+            @if (!string.IsNullOrWhiteSpace(Model.SourceUrl))
+            {
+                <a href="@Model.SourceUrl" target="_blank" rel="noopener noreferrer" class="badge border border-light text-light text-decoration-none">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>來源
+                </a>
+            }
+        </div>
+
+        <h5 class="text-info">效果文字</h5>
+        <p class="text-light mb-0">@Model.EffectText</p>
+    </section>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <section class="augment-panel border border-secondary rounded p-4 h-100">
+                <h5 class="text-warning mb-3">RAG 標籤</h5>
+                <dl class="mb-0">
+                    <dt class="text-info">標籤</dt>
+                    <dd class="tag-list">
+                        @{
+                            var displayTags = SplitValues(Model.Tags)
+                                .Select(DisplayTag)
+                                .Distinct(StringComparer.OrdinalIgnoreCase)
+                                .ToList();
+                        }
+                        @foreach (var tag in displayTags)
+                        {
+                            <span class="tag-pill @TagClass(tag)">@tag</span>
+                        }
+                        @if (displayTags.Count == 0)
+                        {
+                            <span>-</span>
+                        }
+                    </dd>
+
+                    <dt class="text-info">搭配備註</dt>
+                    <dd class="mb-0">@DisplayNote(Model.SynergyNotes)</dd>
+                </dl>
+            </section>
+        </div>
+
+        <div class="col-lg-6">
+            <section class="augment-panel border border-secondary rounded p-4 h-100">
+                <h5 class="text-success mb-3">人工判斷</h5>
+                <dl class="mb-0">
+                    <dt class="text-info">備註</dt>
+                    <dd>@DisplayNote(Model.Notes)</dd>
+
+                    <dt class="text-info">更新時間</dt>
+                    <dd class="mb-0">@Model.UpdatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</dd>
+                </dl>
+            </section>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+<style>
+    .augment-page .augment-panel {
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .augment-page dd {
+        color: #dee2e6;
+        white-space: pre-wrap;
+    }
+
+    .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .tag-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border-radius: 3px;
+        padding: 3px 8px;
+        font-size: 0.78rem;
+        font-weight: 800;
+        line-height: 1.2;
+    }
+
+    .tag-warm { color: #ffe3d2; background: rgba(191, 75, 40, 0.25); border: 1px solid rgba(245, 115, 73, 0.32); }
+    .tag-magic { color: #ded8ff; background: rgba(86, 73, 184, 0.25); border: 1px solid rgba(154, 137, 255, 0.32); }
+    .tag-support { color: #ddfff4; background: rgba(31, 130, 104, 0.25); border: 1px solid rgba(90, 224, 181, 0.32); }
+    .tag-attack { color: #ffe4ed; background: rgba(157, 54, 91, 0.25); border: 1px solid rgba(235, 120, 160, 0.32); }
+    .tag-tank { color: #d8ebff; background: rgba(44, 96, 145, 0.25); border: 1px solid rgba(104, 169, 231, 0.32); }
+    .tag-utility { color: #f1ffd4; background: rgba(104, 135, 39, 0.25); border: 1px solid rgba(184, 224, 91, 0.32); }
+    .tag-stack { color: #d8ffd7; background: rgba(48, 125, 63, 0.25); border: 1px solid rgba(121, 222, 135, 0.32); }
+    .tag-gold { color: #fff1bd; background: rgba(143, 111, 37, 0.26); border: 1px solid rgba(231, 190, 88, 0.35); }
+    .tag-default { color: #d1dde2; background: rgba(124, 145, 153, 0.18); border: 1px solid rgba(159, 181, 190, 0.25); }
+</style>
+}

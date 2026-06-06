@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: proposal-aram-assistant
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:8080
+      - key: Database__Provider
+        value: Supabase
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: OpenRouter__ApiKey
+        sync: false
+      - key: YouTubeSettings__ApiKey
+        sync: false
+      - key: APP_ADMIN_USERS
+        sync: false

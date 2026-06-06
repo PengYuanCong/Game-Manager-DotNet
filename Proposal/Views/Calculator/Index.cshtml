@@ -1,316 +1,833 @@
-﻿@{
-    ViewData["Title"] = "遊戲數值計算";
+@{
+    ViewData["Title"] = "公式計算";
 }
 
-<h2 class="text-info mb-4"><i class="bi bi-calculator me-2"></i>遊戲數值公式計算</h2>
-
-<div class="row mb-4 p-4 rounded shadow-sm" style="background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1);">
-    <div class="col-md-4 mb-3 mb-md-0">
-        <label class="form-label text-info fw-bold">1. 選擇計算公式</label>
-        <select id="formulaType" class="form-select text-bg-dark border-secondary" onchange="changeInputs()">
-            <option value="">-- 請先選擇要計算什麼 --</option>
-            <option value="cp">裝備性價比 (CP值)</option>
-            <option value="dr">減傷百分比</option>
-            <option value="ehp">有效生命值 (EHP)</option>
-        </select>
+<section class="formula-workshop">
+    <div id="calculatorAntiForgeryToken" class="d-none">
+        @Html.AntiForgeryToken()
     </div>
 
-    <div class="col-md-8">
-        <label class="form-label text-warning fw-bold"><i class="bi bi-lightning-fill me-1"></i>2. 懶得輸入？從裝備庫/組合快載</label>
-        
-        <!-- 單件與基礎組合選擇 -->
-        <div class="input-group mb-2">
-            <span class="input-group-text text-bg-dark border-secondary">單件</span>
-            <select id="equipmentSelector" class="form-select text-bg-dark border-secondary">
-                <option value="">-- 選擇單件裝備 --</option>
-                @if (ViewBag.EquipmentList != null)
-                {
-                    foreach (var item in ViewBag.EquipmentList)
-                    {
-                        <option value="@item.Id">@item.Name</option>
-                    }
-                }
-            </select>
-            
-            <span class="input-group-text text-bg-dark border-secondary">組合</span>
-            <select id="loadoutSelector" class="form-select text-bg-dark border-secondary">
-                <option value="">-- 選擇基礎組合 --</option>
-                @if (ViewBag.LoadoutList != null)
-                {
-                    foreach (var lo in (List<Proposal.Models.Loadout>)ViewBag.LoadoutList)
-                    {
-                        <option value="@lo.Id">@lo.LoadoutName</option>
-                    }
-                }
-            </select>
-            
-            <button type="button" id="btnLoadData" class="btn btn-warning fw-bold" onclick="handleDataLoading()">
-                <i class="bi bi-download"></i> 帶入
-            </button>
+    <div class="formula-hero">
+        <div>
+            <div class="formula-kicker">RIFT NUMBERS LAB</div>
+            <h1>公式計算工坊</h1>
+            <p>快速估算裝備金錢效率、減傷、有效生命值與穿透後傷害倍率，讓配裝不只靠感覺。</p>
         </div>
-
-        <!-- 新增：對比組合選擇 -->
-        <div class="input-group">
-            <span class="input-group-text text-bg-dark border-secondary">對比組合</span>
-            <select id="compareLoadoutSelector" class="form-select text-bg-dark border-secondary">
-                <option value="">-- 選擇要對比的組合 (選填) --</option>
-                @if (ViewBag.LoadoutList != null)
-                {
-                    foreach (var lo in (List<Proposal.Models.Loadout>)ViewBag.LoadoutList)
-                    {
-                        <option value="@lo.Id">@lo.LoadoutName</option>
-                    }
-                }
-            </select>
-            <button type="button" id="btnCompareData" class="btn btn-outline-info fw-bold" onclick="handleComparison()">
-                <i class="bi bi-intersect"></i> 開始對比
-            </button>
+        <div class="formula-runes" aria-hidden="true">
+            <span><i class="bi bi-currency-dollar"></i>效率</span>
+            <span><i class="bi bi-shield-shaded"></i>減傷</span>
+            <span><i class="bi bi-heart-pulse"></i>EHP</span>
+            <span><i class="bi bi-crosshair"></i>穿透</span>
         </div>
     </div>
-</div>
 
-<div id="input-fields" class="mb-4 p-4 rounded" style="min-height: 150px; background-color: rgba(0,0,0,0.2); border: 1px dashed rgba(255,255,255,0.2);">
-    <div class="text-center text-secondary mt-3">
-        <i class="bi bi-arrow-up-circle fs-3 d-block mb-2"></i>請先從上方選擇要計算的公式
-    </div>
-</div>
-
-<button type="button" id="btnCalculate" class="btn btn-primary w-100 btn-lg fw-bold mb-4 shadow" style="display:none;">
-    <i class="bi bi-play-circle-fill me-2"></i>開始計算
-</button>
-
-<div class="row g-4 d-none" id="displayArea">
-    <div class="col-md-5">
-        <div id="resultArea" class="p-4 text-center rounded shadow h-100 d-flex flex-column justify-content-center" style="border: 1px solid #20c997; background-color: rgba(32, 201, 151, 0.1);">
-            <h5 class="text-success mb-3"><i class="bi bi-check-circle-fill me-2"></i>計算結果</h5>
-            <h2 id="resultValue" class="text-white fw-bold mb-0" style="letter-spacing: 1px;">--</h2>
-        </div>
-    </div>
-    <div class="col-md-7">
-        <div class="card bg-dark border-secondary shadow p-3 h-100">
-            <h6 class="text-info mb-3 text-center"><i class="bi bi-graph-up me-2"></i>屬性分佈雷達圖</h6>
-            <div style="max-height: 300px; position: relative;">
-                <canvas id="attributeChart"></canvas>
+    <div class="formula-layout">
+        <aside class="formula-console">
+            <div class="console-section">
+                <label class="form-label" for="formulaType">計算公式</label>
+                <select id="formulaType" class="form-select rift-select" onchange="changeInputs()">
+                    <option value="">選擇要計算的項目</option>
+                    <option value="cp">裝備金錢效率</option>
+                    <option value="dr">減傷百分比</option>
+                    <option value="ehp">有效生命值 (EHP)</option>
+                    <option value="pen">穿透後減傷 / 傷害倍率</option>
+                </select>
             </div>
-        </div>
+
+            <div class="console-section">
+                <div class="section-title">
+                    <i class="bi bi-box-seam"></i>
+                    裝備快載
+                </div>
+
+                <label class="form-label" for="equipmentSelector">單件裝備</label>
+                <select id="equipmentSelector" class="form-select rift-select mb-3">
+                    <option value="">選擇單件裝備</option>
+                    @if (ViewBag.EquipmentList != null)
+                    {
+                        foreach (var item in ViewBag.EquipmentList)
+                        {
+                            <option value="@item.Id">@item.Name</option>
+                        }
+                    }
+                </select>
+
+                <label class="form-label" for="loadoutSelector">基礎組合</label>
+                <select id="loadoutSelector" class="form-select rift-select mb-3">
+                    <option value="">選擇基礎組合</option>
+                    @if (ViewBag.LoadoutList != null)
+                    {
+                        foreach (var lo in (List<Proposal.Models.Loadout>)ViewBag.LoadoutList)
+                        {
+                            <option value="@lo.Id">@lo.LoadoutName</option>
+                        }
+                    }
+                </select>
+
+                <button type="button" id="btnLoadData" class="btn rift-primary w-100" onclick="handleDataLoading()">
+                    <i class="bi bi-download me-1"></i>帶入數值
+                </button>
+            </div>
+
+            <div class="console-section">
+                <div class="section-title">
+                    <i class="bi bi-intersect"></i>
+                    組合對比
+                </div>
+                <label class="form-label" for="compareLoadoutSelector">對比組合</label>
+                <select id="compareLoadoutSelector" class="form-select rift-select mb-3">
+                    <option value="">選擇要對比的組合</option>
+                    @if (ViewBag.LoadoutList != null)
+                    {
+                        foreach (var lo in (List<Proposal.Models.Loadout>)ViewBag.LoadoutList)
+                        {
+                            <option value="@lo.Id">@lo.LoadoutName</option>
+                        }
+                    }
+                </select>
+                <button type="button" id="btnCompareData" class="btn rift-outline w-100" onclick="handleComparison()">
+                    <i class="bi bi-diagram-3 me-1"></i>開始對比
+                </button>
+            </div>
+        </aside>
+
+        <main class="formula-main">
+            <section class="formula-input-card">
+                <div class="panel-heading">
+                    <span>01</span>
+                    <div>
+                        <h2>輸入參數</h2>
+                        <p>可手動輸入，也可以從左側裝備庫直接帶入。</p>
+                    </div>
+                </div>
+                <div id="input-fields" class="formula-input-fields">
+                    <div class="empty-state">
+                        <i class="bi bi-arrow-up-circle"></i>
+                        <strong>先選擇公式</strong>
+                        <span>選定公式後，這裡會切換成對應的輸入欄位。</span>
+                    </div>
+                </div>
+                <button type="button" id="btnCalculate" class="btn rift-primary btn-lg w-100 mt-3" style="display:none;">
+                    <i class="bi bi-play-circle-fill me-2"></i>開始計算
+                </button>
+            </section>
+
+            <section class="formula-result-grid d-none" id="displayArea">
+                <article id="resultArea" class="result-card">
+                    <div class="panel-heading compact">
+                        <span>02</span>
+                        <h2>計算結果</h2>
+                    </div>
+                    <div id="resultValue" class="result-value">--</div>
+                </article>
+
+                <article class="chart-card">
+                    <div class="panel-heading compact">
+                        <span>03</span>
+                        <h2>屬性分佈雷達圖</h2>
+                    </div>
+                    <div class="chart-shell">
+                        <canvas id="attributeChart"></canvas>
+                    </div>
+                </article>
+            </section>
+        </main>
     </div>
-</div>
+</section>
+
+@section Styles {
+<style>
+    .formula-workshop {
+        padding: 10px 0 46px;
+    }
+
+    .formula-hero,
+    .formula-console,
+    .formula-input-card,
+    .result-card,
+    .chart-card {
+        border: 1px solid rgba(34, 232, 255, 0.24);
+        background:
+            linear-gradient(135deg, rgba(3, 16, 24, 0.96), rgba(5, 32, 43, 0.9)),
+            repeating-linear-gradient(90deg, rgba(34, 232, 255, 0.045) 0 1px, transparent 1px 58px);
+        box-shadow: 0 22px 70px rgba(0, 0, 0, 0.32);
+    }
+
+    .formula-hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: end;
+        min-height: 230px;
+        padding: clamp(26px, 5vw, 48px);
+        margin-bottom: 22px;
+        border-color: rgba(216, 182, 92, 0.28);
+        background:
+            linear-gradient(110deg, rgba(3, 11, 16, 0.96) 0%, rgba(6, 31, 42, 0.88) 58%, rgba(31, 144, 155, 0.2) 100%),
+            radial-gradient(circle at 84% 20%, rgba(216, 182, 92, 0.16), transparent 22rem),
+            repeating-linear-gradient(90deg, rgba(34, 232, 255, 0.045) 0 1px, transparent 1px 58px);
+    }
+
+    .formula-kicker {
+        color: #22e8ff;
+        font-size: 0.78rem;
+        font-weight: 900;
+        text-transform: uppercase;
+    }
+
+    .formula-hero h1 {
+        margin: 8px 0 12px;
+        color: #fff4c7;
+        font-size: clamp(2.6rem, 6vw, 5.6rem);
+        font-weight: 950;
+        line-height: 0.95;
+    }
+
+    .formula-hero p {
+        max-width: 640px;
+        margin: 0;
+        color: #c8e8ef;
+        line-height: 1.85;
+    }
+
+    .formula-runes {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(112px, 1fr));
+        gap: 10px;
+        min-width: min(100%, 270px);
+    }
+
+    .formula-runes span {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 46px;
+        padding: 10px 12px;
+        border: 1px solid rgba(34, 232, 255, 0.32);
+        color: #f5fbff;
+        background: rgba(0, 0, 0, 0.25);
+        font-weight: 900;
+    }
+
+    .formula-runes i {
+        color: #d8b65c;
+        font-size: 1.1rem;
+    }
+
+    .formula-layout {
+        display: grid;
+        grid-template-columns: minmax(290px, 370px) minmax(0, 1fr);
+        gap: 22px;
+    }
+
+    .formula-console,
+    .formula-input-card,
+    .result-card,
+    .chart-card {
+        padding: 22px;
+    }
+
+    .console-section + .console-section {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .section-title,
+    .panel-heading h2 {
+        color: #fff7d8;
+        font-weight: 950;
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 14px;
+        font-size: 1rem;
+    }
+
+    .section-title i {
+        color: #22e8ff;
+    }
+
+    .form-label {
+        color: #22e8ff;
+        font-size: 0.86rem;
+        font-weight: 900;
+    }
+
+    .rift-select,
+    .calc-input {
+        min-height: 48px;
+        border-radius: 0;
+        border: 1px solid rgba(164, 190, 198, 0.45);
+        color: #fff;
+        background-color: rgba(255, 255, 255, 0.075);
+    }
+
+    .rift-select:focus,
+    .calc-input:focus {
+        color: #fff;
+        border-color: #22e8ff;
+        background-color: rgba(34, 232, 255, 0.08);
+        box-shadow: 0 0 0 0.18rem rgba(34, 232, 255, 0.16);
+    }
+
+    .rift-select option {
+        color: #f5fbff;
+        background-color: #061923;
+    }
+
+    .rift-select option:checked,
+    .rift-select option:hover {
+        color: #031017;
+        background-color: #8fc7ff;
+    }
+
+    .rift-primary,
+    .rift-outline {
+        min-height: 46px;
+        border-radius: 0;
+        font-weight: 950;
+    }
+
+    .rift-primary {
+        border: 1px solid rgba(34, 232, 255, 0.85);
+        color: #031017;
+        background: linear-gradient(135deg, #18d5f0, #9ee996);
+        box-shadow: 0 14px 30px rgba(34, 232, 255, 0.16);
+    }
+
+    .rift-outline {
+        border: 1px solid rgba(34, 232, 255, 0.62);
+        color: #22e8ff;
+        background: rgba(34, 232, 255, 0.06);
+    }
+
+    .rift-primary:hover,
+    .rift-outline:hover {
+        transform: translateY(-1px);
+    }
+
+    .formula-main {
+        display: grid;
+        gap: 22px;
+    }
+
+    .panel-heading {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .panel-heading span {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border: 1px solid rgba(216, 182, 92, 0.62);
+        color: #fff0aa;
+        background: rgba(216, 182, 92, 0.12);
+        font-weight: 950;
+    }
+
+    .panel-heading.compact {
+        margin-bottom: 12px;
+    }
+
+    .panel-heading h2 {
+        margin: 0;
+        font-size: 1.15rem;
+    }
+
+    .panel-heading p {
+        margin: 4px 0 0;
+        color: #93b5bf;
+    }
+
+    .formula-input-fields {
+        min-height: 190px;
+        padding: 18px;
+        border: 1px dashed rgba(34, 232, 255, 0.28);
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    .empty-state {
+        min-height: 150px;
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 8px;
+        text-align: center;
+        color: #91aeb8;
+    }
+
+    .empty-state i {
+        color: #22e8ff;
+        font-size: 2rem;
+    }
+
+    .formula-result-grid {
+        display: grid;
+        grid-template-columns: minmax(260px, 0.8fr) minmax(320px, 1.2fr);
+        gap: 22px;
+    }
+
+    .result-card {
+        display: grid;
+        align-content: center;
+        min-height: 300px;
+        border-color: rgba(158, 233, 150, 0.38);
+    }
+
+    .result-value {
+        color: #f7fffb;
+        font-size: clamp(1.65rem, 3vw, 2.65rem);
+        font-weight: 950;
+        line-height: 1.4;
+    }
+
+    .chart-shell {
+        height: 318px;
+        position: relative;
+        padding: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.18);
+    }
+
+    .formula-help {
+        color: #91aeb8;
+        font-size: 0.86rem;
+        line-height: 1.65;
+    }
+
+    @@media (max-width: 1100px) {
+        .formula-layout,
+        .formula-result-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .formula-hero {
+            align-items: start;
+            flex-direction: column;
+        }
+    }
+
+    @@media (max-width: 560px) {
+        .formula-runes {
+            grid-template-columns: 1fr;
+            width: 100%;
+        }
+
+        .formula-console,
+        .formula-input-card,
+        .result-card,
+        .chart-card {
+            padding: 18px;
+        }
+    }
+</style>
+}
 
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-        let myRadarChart = null; // 紀錄圖表實體
+        let myRadarChart = null;
+
+        function normalizeStats(data) {
+            return {
+                hp: Number(data.hp || 0),
+                mana: Number(data.mana || 0),
+                attack: Number(data.attack || 0),
+                magicAttack: Number(data.magicAttack || 0),
+                pDef: Number(data.physicalDefense || data.pDef || 0),
+                mDef: Number(data.magicDefense || data.mDef || 0),
+                healthRegen: Number(data.healthRegen || 0),
+                manaRegen: Number(data.manaRegen || 0),
+                abilityHaste: Number(data.abilityHaste || 0),
+                attackSpeed: Number(data.attackSpeed || 0),
+                criticalStrikeChance: Number(data.criticalStrikeChance || 0),
+                moveSpeed: Number(data.moveSpeed || 0),
+                moveSpeedPercent: Number(data.moveSpeedPercent || 0),
+                lethality: Number(data.lethality || 0),
+                armorPenetrationPercent: Number(data.armorPenetrationPercent || 0),
+                magicPenetration: Number(data.magicPenetration || 0),
+                magicPenetrationPercent: Number(data.magicPenetrationPercent || 0),
+                lifeSteal: Number(data.lifeSteal || 0),
+                omnivamp: Number(data.omnivamp || 0),
+                healAndShieldPower: Number(data.healAndShieldPower || 0),
+                tenacity: Number(data.tenacity || 0),
+                price: Number(data.price || 0)
+            };
+        }
+
+        const statGoldWeights = {
+            hp: 2.67,
+            mana: 1.4,
+            attack: 35,
+            magicAttack: 21.75,
+            pDef: 20,
+            mDef: 18,
+            healthRegen: 3,
+            manaRegen: 5,
+            abilityHaste: 50,
+            attackSpeed: 25,
+            criticalStrikeChance: 40,
+            moveSpeed: 12,
+            moveSpeedPercent: 39.5,
+            lethality: 5,
+            armorPenetrationPercent: 41.67,
+            magicPenetration: 31.1,
+            magicPenetrationPercent: 46.15,
+            lifeSteal: 37.5,
+            omnivamp: 45,
+            healAndShieldPower: 30,
+            tenacity: 30
+        };
+
+        function statGoldValue(stats) {
+            return stats.hp * statGoldWeights.hp
+                + stats.mana * statGoldWeights.mana
+                + stats.attack * statGoldWeights.attack
+                + stats.magicAttack * statGoldWeights.magicAttack
+                + stats.pDef * statGoldWeights.pDef
+                + stats.mDef * statGoldWeights.mDef
+                + stats.healthRegen * statGoldWeights.healthRegen
+                + stats.manaRegen * statGoldWeights.manaRegen
+                + stats.abilityHaste * statGoldWeights.abilityHaste
+                + stats.attackSpeed * statGoldWeights.attackSpeed
+                + stats.criticalStrikeChance * statGoldWeights.criticalStrikeChance
+                + stats.moveSpeed * statGoldWeights.moveSpeed
+                + stats.moveSpeedPercent * statGoldWeights.moveSpeedPercent
+                + stats.lethality * statGoldWeights.lethality
+                + stats.armorPenetrationPercent * statGoldWeights.armorPenetrationPercent
+                + stats.magicPenetration * statGoldWeights.magicPenetration
+                + stats.magicPenetrationPercent * statGoldWeights.magicPenetrationPercent
+                + stats.lifeSteal * statGoldWeights.lifeSteal
+                + stats.omnivamp * statGoldWeights.omnivamp
+                + stats.healAndShieldPower * statGoldWeights.healAndShieldPower
+                + stats.tenacity * statGoldWeights.tenacity;
+        }
+
+        function damageTakenMultiplier(resist) {
+            if (resist >= 0) {
+                return 100 / (100 + resist);
+            }
+
+            return 2 - 100 / (100 - resist);
+        }
+
+        function damageReductionPercent(resist) {
+            return (1 - damageTakenMultiplier(resist)) * 100;
+        }
+
+        function effectiveResistanceAfterPenetration(resist, percentPen, flatPen) {
+            if (resist <= 0) {
+                return resist;
+            }
+
+            const percent = Math.min(Math.max(percentPen, 0), 100) / 100;
+            const afterPercent = resist * (1 - percent);
+            return Math.max(0, afterPercent - Math.max(flatPen, 0));
+        }
 
         function changeInputs() {
-        var type = document.getElementById("formulaType").value;
-        var container = document.getElementById("input-fields");
-        var btn = document.getElementById("btnCalculate");
-        var displayArea = document.getElementById("displayArea");
-            
-        container.innerHTML = "";
-        displayArea.classList.add('d-none'); // 隱藏結果區
-        btn.style.display = type === "" ? "none" : "block";
+            const type = document.getElementById("formulaType").value;
+            const container = document.getElementById("input-fields");
+            const btn = document.getElementById("btnCalculate");
+            const displayArea = document.getElementById("displayArea");
 
-        if (type === "cp") {
-        container.innerHTML = `
-        <div class="mb-3"><label class="form-label text-light">屬性總價值</label><input type="number" step="0.01" class="form-control text-bg-dark border-secondary" id="input_param1" required></div>
-        <div class="mb-3"><label class="form-label text-warning">💰 裝備總價格</label><input type="number" step="0.01" class="form-control text-bg-dark border-secondary" id="input_param2" required></div>`;
-        } else if (type === "dr") {
-        container.innerHTML = `
-        <div class="row">
-        <div class="col-6 mb-3"><label class="form-label" style="color: #6ea8fe;">🛡️ 物理防禦</label><input type="number" step="0.01" class="form-control text-bg-dark border-secondary" id="input_param1" required></div>
-        <div class="col-6 mb-3"><label class="form-label text-info">✨ 魔法防禦</label><input type="number" step="0.01" class="form-control text-bg-dark border-secondary" id="input_param2" required></div>
-        </div>`;
-        } else if (type === "ehp") {
-        container.innerHTML = `
-        <div class="mb-3"><label class="form-label text-danger">❤️ 基礎生命值 (HP)</label><input type="number" step="0.01" class="form-control text-bg-dark border-secondary" id="input_param1" required></div>
-        <div class="row">
-        <div class="col-6 mb-3"><label class="form-label" style="color: #6ea8fe;">🛡️ 物理防禦</label><input type="number" step="0.01" class="form-control text-bg-dark border-secondary" id="input_param2" required></div>
-        <div class="col-6 mb-3"><label class="form-label text-info">✨ 魔法防禦</label><input type="number" step="0.01" class="form-control text-bg-dark border-secondary" id="input_param3" required></div>
-        </div>`;
-        } else {
-        container.innerHTML = `<div class="text-center text-secondary mt-3"><i class="bi bi-arrow-up-circle fs-3 d-block mb-2"></i>請先從上方選擇要計算的公式</div>`;
-        }
+            container.innerHTML = "";
+            displayArea.classList.add("d-none");
+            btn.style.display = type === "" ? "none" : "block";
+
+            if (type === "cp") {
+                container.innerHTML = `
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="input_param1">理論屬性金錢價值</label>
+                            <input type="number" step="0.01" class="form-control calc-input" id="input_param1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="input_param2">裝備總價格</label>
+                            <input type="number" step="0.01" class="form-control calc-input" id="input_param2" required>
+                        </div>
+                    </div>
+                    <p class="formula-help mt-3 mb-0">只計算可量化素質；主動、被動與英雄適配度會交給 AI 推薦補判斷。</p>`;
+            } else if (type === "dr") {
+                container.innerHTML = `
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="input_param1">物理防禦</label>
+                            <input type="number" step="0.01" class="form-control calc-input" id="input_param1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="input_param2">魔法防禦</label>
+                            <input type="number" step="0.01" class="form-control calc-input" id="input_param2" required>
+                        </div>
+                    </div>`;
+            } else if (type === "ehp") {
+                container.innerHTML = `
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label" for="input_param1">生命值</label>
+                            <input type="number" step="0.01" class="form-control calc-input" id="input_param1" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="input_param2">物理防禦</label>
+                            <input type="number" step="0.01" class="form-control calc-input" id="input_param2" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="input_param3">魔法防禦</label>
+                            <input type="number" step="0.01" class="form-control calc-input" id="input_param3" required>
+                        </div>
+                    </div>`;
+            } else if (type === "pen") {
+                container.innerHTML = `
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label" for="input_param1">目標原始抗性</label>
+                            <input type="number" step="0.01" value="100" class="form-control calc-input" id="input_param1" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="input_param2">百分比穿透 %</label>
+                            <input type="number" step="0.01" class="form-control calc-input" id="input_param2" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="input_param3">固定穿透</label>
+                            <input type="number" step="0.01" class="form-control calc-input" id="input_param3" required>
+                        </div>
+                    </div>
+                    <p class="formula-help mt-3 mb-0">估算物穿或魔穿：先套用百分比穿透，再套用固定穿透，且穿透不會把正抗性壓成負值。</p>`;
+            } else {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="bi bi-arrow-up-circle"></i>
+                        <strong>先選擇公式</strong>
+                        <span>選定公式後，這裡會切換成對應的輸入欄位。</span>
+                    </div>`;
+            }
         }
 
-        // 修改：繪製雷達圖函式 (支援雙數據集對比)
         function updateRadarChart(baseStats, compareStats = null) {
-        const ctx = document.getElementById('attributeChart').getContext('2d');
-        if (myRadarChart) { myRadarChart.destroy(); }
+            const ctx = document.getElementById("attributeChart").getContext("2d");
+            if (myRadarChart) {
+                myRadarChart.destroy();
+            }
 
-        const datasets = [{
-        label: '基礎組合/裝備',
-        data: [baseStats.hp, baseStats.attack, baseStats.magicAttack, baseStats.pDef, baseStats.mDef],
-        backgroundColor: 'rgba(13, 202, 240, 0.2)',
-        borderColor: '#0dcaf0',
-        borderWidth: 2,
-        pointBackgroundColor: '#fff'
-        }];
+            const datasets = [{
+                label: "基礎組合/裝備",
+                data: [
+                    baseStats.hp,
+                    baseStats.attack,
+                    baseStats.magicAttack,
+                    baseStats.pDef + baseStats.mDef,
+                    baseStats.lethality + baseStats.armorPenetrationPercent + baseStats.magicPenetration + baseStats.magicPenetrationPercent,
+                    baseStats.abilityHaste + baseStats.attackSpeed + baseStats.criticalStrikeChance,
+                    baseStats.lifeSteal + baseStats.omnivamp + baseStats.healAndShieldPower + baseStats.healthRegen + baseStats.manaRegen
+                ],
+                backgroundColor: "rgba(34, 232, 255, 0.18)",
+                borderColor: "#22e8ff",
+                borderWidth: 2,
+                pointBackgroundColor: "#fff6cf"
+            }];
 
-        if (compareStats) {
-        datasets.push({
-        label: '對比組合',
-        data: [compareStats.hp, compareStats.attack, compareStats.magicAttack, compareStats.pDef, compareStats.mDef],
-        backgroundColor: 'rgba(255, 193, 7, 0.2)', // 黃色對比色
-        borderColor: '#ffc107',
-        borderWidth: 2,
-        pointBackgroundColor: '#fff'
-        });
-        }
+            if (compareStats) {
+                datasets.push({
+                    label: "對比組合",
+                    data: [
+                        compareStats.hp,
+                        compareStats.attack,
+                        compareStats.magicAttack,
+                        compareStats.pDef + compareStats.mDef,
+                        compareStats.lethality + compareStats.armorPenetrationPercent + compareStats.magicPenetration + compareStats.magicPenetrationPercent,
+                        compareStats.abilityHaste + compareStats.attackSpeed + compareStats.criticalStrikeChance,
+                        compareStats.lifeSteal + compareStats.omnivamp + compareStats.healAndShieldPower + compareStats.healthRegen + compareStats.manaRegen
+                    ],
+                    backgroundColor: "rgba(216, 182, 92, 0.18)",
+                    borderColor: "#d8b65c",
+                    borderWidth: 2,
+                    pointBackgroundColor: "#fff6cf"
+                });
+            }
 
-        myRadarChart = new Chart(ctx, {
-        type: 'radar',
-        data: {
-        labels: ['生命值', '物理攻擊', '魔法攻擊', '物理防禦', '魔法防禦'],
-        datasets: datasets
-        },
-        options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-        r: {
-        angleLines: { color: 'rgba(255,255,255,0.1)' },
-        grid: { color: 'rgba(255,255,255,0.1)' },
-        pointLabels: { color: '#aaa', font: { size: 12 } },
-        ticks: { display: false, count: 5 }
-        }
-        },
-        // 如果有對比，顯示圖例讓玩家好分辨顏色
-        plugins: { legend: { display: compareStats !== null, labels: { color: '#fff' } } }
-        }
-        });
+            myRadarChart = new Chart(ctx, {
+                type: "radar",
+                data: {
+                    labels: ["生命值", "物理攻擊", "魔法攻擊", "雙防", "穿透", "輸出效率", "續戰輔助"],
+                    datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: "rgba(255,255,255,0.12)" },
+                            grid: { color: "rgba(255,255,255,0.12)" },
+                            pointLabels: { color: "#d8edf4", font: { size: 12, weight: "bold" } },
+                            ticks: { display: false, count: 5 }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: compareStats !== null,
+                            labels: { color: "#f5fbff" }
+                        }
+                    }
+                }
+            });
         }
 
         function handleDataLoading() {
-        const formulaType = document.getElementById("formulaType").value;
-        const eqId = document.getElementById('equipmentSelector').value;
-        const loadoutId = document.getElementById('loadoutSelector').value;
-            
-        if (!formulaType) { alert('請先選擇左方的「計算公式」！'); return; }
-        if (!eqId && !loadoutId) { alert('請從「單件」或「基礎組合」中擇一選取！'); return; }
+            const formulaType = document.getElementById("formulaType").value;
+            const eqId = document.getElementById("equipmentSelector").value;
+            const loadoutId = document.getElementById("loadoutSelector").value;
 
-        const btn = document.getElementById('btnLoadData');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-        btn.disabled = true;
+            if (!formulaType) {
+                alert("請先選擇計算公式。");
+                return;
+            }
 
-        let fetchUrl = loadoutId ? `/Equipment/GetLoadoutStats?loadoutId=${loadoutId}` : `/Equipment/GetEquipmentDetails/${eqId}`;
+            if (!eqId && !loadoutId) {
+                alert("請從單件裝備或基礎組合中擇一選取。");
+                return;
+            }
 
-        fetch(fetchUrl)
-        .then(res => res.json())
-        .then(data => {
-        if (data) {
-        const stats = {
-        hp: data.hp || 0,
-        attack: data.attack || 0,
-        magicAttack: data.magicAttack || 0,
-        pDef: data.physicalDefense || data.pDef || 0,
-        mDef: data.magicDefense || data.mDef || 0,
-        price: data.price || 0
-        };
+            const btn = document.getElementById("btnLoadData");
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            btn.disabled = true;
 
-        // 填入輸入框
-        if (formulaType === "cp") {
-        document.getElementById('input_param1').value = stats.hp + stats.attack + stats.magicAttack + stats.pDef + stats.mDef;
-        document.getElementById('input_param2').value = stats.price;
-        } else if (formulaType === "dr") {
-        document.getElementById('input_param1').value = stats.pDef;
-        document.getElementById('input_param2').value = stats.mDef;
-        } else if (formulaType === "ehp") {
-        document.getElementById('input_param1').value = stats.hp;
-        document.getElementById('input_param2').value = stats.pDef;
-        document.getElementById('input_param3').value = stats.mDef;
+            const fetchUrl = loadoutId ? `/Equipment/GetLoadoutStats?loadoutId=${loadoutId}` : `/Equipment/GetEquipmentDetails/${eqId}`;
+
+            fetch(fetchUrl)
+                .then(res => res.json())
+                .then(data => {
+                    if (!data) {
+                        return;
+                    }
+
+                    const stats = normalizeStats(data);
+
+                    if (formulaType === "cp") {
+                        document.getElementById("input_param1").value = statGoldValue(stats).toFixed(2);
+                        document.getElementById("input_param2").value = stats.price;
+                    } else if (formulaType === "dr") {
+                        document.getElementById("input_param1").value = stats.pDef;
+                        document.getElementById("input_param2").value = stats.mDef;
+                    } else if (formulaType === "ehp") {
+                        document.getElementById("input_param1").value = stats.hp;
+                        document.getElementById("input_param2").value = stats.pDef;
+                        document.getElementById("input_param3").value = stats.mDef;
+                    } else if (formulaType === "pen") {
+                        document.getElementById("input_param1").value = document.getElementById("input_param1").value || 100;
+                        document.getElementById("input_param2").value = Math.max(stats.armorPenetrationPercent, stats.magicPenetrationPercent);
+                        document.getElementById("input_param3").value = Math.max(stats.lethality, stats.magicPenetration);
+                    }
+
+                    document.getElementById("displayArea").classList.remove("d-none");
+                    updateRadarChart(stats);
+                })
+                .catch(err => console.error(err))
+                .finally(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                });
         }
-                    
-        // 更新雷達圖並顯示區域 (單筆數據)
-        document.getElementById('displayArea').classList.remove('d-none');
-        updateRadarChart(stats);
-        }
-        })
-        .catch(err => console.error(err))
-        .finally(() => { btn.innerHTML = originalText; btn.disabled = false; });
-        }
 
-        // 新增：處理對比邏輯的非同步函式
         async function handleComparison() {
-        const baseId = document.getElementById('loadoutSelector').value;
-        const compareId = document.getElementById('compareLoadoutSelector').value;
+            const baseId = document.getElementById("loadoutSelector").value;
+            const compareId = document.getElementById("compareLoadoutSelector").value;
 
-        if (!baseId || !compareId) {
-        alert("請從上方選單分別選擇「基礎組合」與「對比組合」！");
-        return;
+            if (!baseId || !compareId) {
+                alert("請分別選擇基礎組合與對比組合。");
+                return;
+            }
+
+            const btn = document.getElementById("btnCompareData");
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            btn.disabled = true;
+
+            try {
+                const [res1, res2] = await Promise.all([
+                    fetch(`/Equipment/GetLoadoutStats?loadoutId=${baseId}`),
+                    fetch(`/Equipment/GetLoadoutStats?loadoutId=${compareId}`)
+                ]);
+
+                const baseData = await res1.json();
+                const compareData = await res2.json();
+                const stats1 = normalizeStats(baseData);
+                const stats2 = normalizeStats(compareData);
+
+                document.getElementById("displayArea").classList.remove("d-none");
+                updateRadarChart(stats1, stats2);
+            } catch (err) {
+                console.error("對比載入失敗", err);
+                alert("載入對比資料時發生錯誤。");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
         }
 
-        const btn = document.getElementById('btnCompareData');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-        btn.disabled = true;
+        document.getElementById("btnCalculate").addEventListener("click", function () {
+            const formulaSelect = document.getElementById("formulaType");
+            const type = formulaSelect.value;
+            const typeText = formulaSelect.options[formulaSelect.selectedIndex].text;
 
-        try {
-        // 同時發送兩個請求，效能更好
-        const [res1, res2] = await Promise.all([
-        fetch(`/Equipment/GetLoadoutStats?loadoutId=${baseId}`),
-        fetch(`/Equipment/GetLoadoutStats?loadoutId=${compareId}`)
-        ]);
+            const p1 = parseFloat(document.getElementById("input_param1")?.value) || 0;
+            const p2 = parseFloat(document.getElementById("input_param2")?.value) || 0;
+            const p3 = parseFloat(document.getElementById("input_param3")?.value) || 0;
 
-        const baseData = await res1.json();
-        const compareData = await res2.json();
+            let result = "";
+            if (type === "cp") {
+                if (p2 === 0) {
+                    alert("裝備價格不能為 0。");
+                    return;
+                }
 
-        const stats1 = {
-        hp: baseData.hp || 0, attack: baseData.attack || 0, magicAttack: baseData.magicAttack || 0,
-        pDef: baseData.physicalDefense || baseData.pDef || 0, mDef: baseData.magicDefense || baseData.mDef || 0
-        };
-        const stats2 = {
-        hp: compareData.hp || 0, attack: compareData.attack || 0, magicAttack: compareData.magicAttack || 0,
-        pDef: compareData.physicalDefense || compareData.pDef || 0, mDef: compareData.magicDefense || compareData.mDef || 0
-        };
+                const efficiency = p1 / p2 * 100;
+                result = `理論金錢效率：${efficiency.toFixed(1)}% <br> 屬性價值：約 ${p1.toFixed(0)} 金`;
+            } else if (type === "dr") {
+                result = `物理減傷：${damageReductionPercent(p1).toFixed(1)}% <br> 魔法減傷：${damageReductionPercent(p2).toFixed(1)}%`;
+            } else if (type === "ehp") {
+                result = `面對物理傷害 EHP：${(p1 / damageTakenMultiplier(p2)).toFixed(0)} <br> 面對魔法傷害 EHP：${(p1 / damageTakenMultiplier(p3)).toFixed(0)}`;
+            } else if (type === "pen") {
+                const effectiveResist = effectiveResistanceAfterPenetration(p1, p2, p3);
+                const beforeMultiplier = damageTakenMultiplier(p1);
+                const afterMultiplier = damageTakenMultiplier(effectiveResist);
+                result = `穿透後抗性：${effectiveResist.toFixed(1)} <br> 減傷：${damageReductionPercent(effectiveResist).toFixed(1)}% <br> 傷害倍率提升：${(afterMultiplier / beforeMultiplier).toFixed(2)}x`;
+            }
 
-        // 顯示結果區域並更新為「雙雷達圖對比」
-        document.getElementById('displayArea').classList.remove('d-none');
-        updateRadarChart(stats1, stats2);
-                
-        } catch (err) {
-        console.error("對比載入失敗", err);
-        alert("載入對比資料時發生錯誤。");
-        } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        }
-        }
+            document.getElementById("resultValue").innerHTML = result;
+            document.getElementById("displayArea").classList.remove("d-none");
 
-        document.getElementById('btnCalculate').addEventListener('click', function() {
-        const type = document.getElementById("formulaType").value;
-        const typeText = document.getElementById("formulaType").options[document.getElementById("formulaType").selectedIndex].text;
-            
-        const p1 = parseFloat(document.getElementById('input_param1')?.value) || 0;
-        const p2 = parseFloat(document.getElementById('input_param2')?.value) || 0;
-        const p3 = parseFloat(document.getElementById('input_param3')?.value) || 0;
+            const inputsString = type === "cp"
+                ? `理論金錢價值: ${p1} , 價格: ${p2}`
+                : type === "dr"
+                    ? `物防: ${p1} , 魔防: ${p2}`
+                    : type === "pen"
+                        ? `抗性: ${p1} , 百分比穿透: ${p2} , 固定穿透: ${p3}`
+                        : `HP: ${p1} , 物防: ${p2} , 魔防: ${p3}`;
 
-        let result = "";
-        if (type === "cp") {
-        if(p2 === 0) { alert("裝備價格不能為 0！"); return; }
-        result = `CP 值：${(p1 / p2).toFixed(2)}`;
-        } else if (type === "dr") {
-        result = `物理減傷：${(p1 / (p1 + 100) * 100).toFixed(1)}% <br> 魔法減傷：${(p2 / (p2 + 100) * 100).toFixed(1)}%`;
-        } else if (type === "ehp") {
-        result = `面對物理傷害 EHP：${(p1 * (1 + p2 / 100)).toFixed(0)} <br> 面對魔法傷害 EHP：${(p1 * (1 + p3 / 100)).toFixed(0)}`;
-        }
+            const antiForgeryToken = document.querySelector('#calculatorAntiForgeryToken input[name="__RequestVerificationToken"]')?.value || "";
 
-        document.getElementById('resultValue').innerHTML = result;
-        document.getElementById('displayArea').classList.remove('d-none');
-
-        let inputsString = (type === "cp") ? `總價值: ${p1} , 價格: ${p2}` : (type === "dr") ? `物防: ${p1} , 魔防: ${p2}` : `HP: ${p1} , 物防: ${p2} , 魔防: ${p3}`;
-
-        fetch('/Calculator/SaveRecord', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-        'type': typeText,
-        'inputs': inputsString,
-        'result': result.replace('<br>', ' | ')
-        })
-        });
+            fetch("/Calculator/SaveRecord", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "RequestVerificationToken": antiForgeryToken
+                },
+                body: new URLSearchParams({
+                    type: typeText,
+                    inputs: inputsString,
+                    result: result.replaceAll("<br>", " | ")
+                })
+            });
         });
 
         window.onload = changeInputs;

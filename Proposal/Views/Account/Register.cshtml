@@ -1,5 +1,5 @@
-﻿@{
-    Layout = null; // 一樣不要套用左側選單
+@{
+    Layout = null;
 }
 
 <!DOCTYPE html>
@@ -7,88 +7,474 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>註冊新帳號 - 面試專案</title>
+    <title>註冊 - 彭彭遊戲基地</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-    
+
     <style>
+        :root {
+            --rift-bg: #03080d;
+            --rift-panel: rgba(6, 22, 31, 0.92);
+            --rift-panel-strong: rgba(8, 33, 43, 0.96);
+            --rift-line: rgba(31, 230, 246, 0.32);
+            --rift-cyan: #23e8ff;
+            --rift-gold: #d8b65c;
+            --rift-cream: #fff2c8;
+            --rift-muted: #8da7b2;
+            --rift-danger: #ff5a6c;
+            --poro-bg: url("https://wiki.leagueoflegends.com/en-us/Special:Redirect/file/Ready_to_Play_Poro_profileicon.jpg");
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-            height: 100vh;
+            min-height: 100vh;
+            margin: 0;
+            color: #f4fbff;
+            font-family: "Microsoft JhengHei", "Noto Sans TC", "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at 18% 18%, rgba(35, 232, 255, 0.16), transparent 24rem),
+                radial-gradient(circle at 82% 78%, rgba(216, 182, 92, 0.13), transparent 26rem),
+                linear-gradient(135deg, #02060a 0%, #051823 54%, #020509 100%);
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(rgba(35, 232, 255, 0.045) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(35, 232, 255, 0.045) 1px, transparent 1px);
+            background-size: 44px 44px;
+            mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+        }
+
+        .auth-shell {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: minmax(360px, 520px) minmax(320px, 0.9fr);
+            gap: clamp(28px, 6vw, 88px);
+            align-items: center;
+            width: min(1180px, calc(100% - 40px));
+            margin: 0 auto;
+            padding: 48px 0;
+            position: relative;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 22px;
+            left: 22px;
+            z-index: 5;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 42px;
+            padding: 8px 14px;
+            color: var(--rift-cyan);
+            text-decoration: none;
+            border: 1px solid var(--rift-line);
+            background: rgba(4, 18, 25, 0.72);
+            box-shadow: 0 0 22px rgba(35, 232, 255, 0.12);
+        }
+
+        .back-link:hover {
+            color: #061018;
+            background: var(--rift-cyan);
+        }
+
+        .auth-card,
+        .auth-lore {
+            position: relative;
+            border: 1px solid rgba(35, 232, 255, 0.46);
+            background:
+                linear-gradient(180deg, var(--rift-panel-strong), var(--rift-panel)),
+                repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 18px);
+            box-shadow:
+                0 28px 90px rgba(0, 0, 0, 0.54),
+                0 0 0 1px rgba(216, 182, 92, 0.1) inset;
+        }
+
+        .auth-card {
+            padding: 34px;
+        }
+
+        .auth-card::after,
+        .auth-lore::after {
+            content: "";
+            position: absolute;
+            right: -1px;
+            bottom: -1px;
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, transparent 0 50%, var(--rift-cyan) 51%);
+            opacity: 0.8;
+        }
+
+        .auth-lore {
+            min-height: 620px;
+            padding: 42px;
+            border-color: rgba(216, 182, 92, 0.32);
+            background-image:
+                linear-gradient(135deg, rgba(1, 9, 15, 0.92), rgba(5, 28, 40, 0.78)),
+                var(--poro-bg),
+                repeating-linear-gradient(90deg, rgba(35, 232, 255, 0.06) 0 1px, transparent 1px 78px);
+            background-position:
+                center,
+                right 30px bottom 28px,
+                center;
+            background-size:
+                auto,
+                min(42vw, 280px) auto,
+                78px 78px;
+            background-repeat:
+                no-repeat,
+                no-repeat,
+                repeat;
+            overflow: hidden;
+        }
+
+        .auth-lore::before {
+            content: "";
+            position: absolute;
+            width: 520px;
+            height: 520px;
+            left: -170px;
+            bottom: -140px;
+            border: 1px solid rgba(216, 182, 92, 0.38);
+            border-radius: 50%;
+            box-shadow: inset 0 0 44px rgba(35, 232, 255, 0.08);
+        }
+
+        .auth-kicker {
+            color: var(--rift-cyan);
+            font-size: 0.78rem;
+            font-weight: 900;
+            letter-spacing: 0;
+            text-transform: uppercase;
+        }
+
+        .auth-card-header {
+            margin-bottom: 26px;
+        }
+
+        .auth-card-header h2,
+        .auth-lore h1 {
+            color: #ffffff;
+            font-weight: 950;
+        }
+
+        .auth-card-header h2 {
+            margin: 7px 0 8px;
+            font-size: 2.1rem;
+        }
+
+        .auth-card-header p,
+        .auth-lore p {
+            margin: 0;
+            color: var(--rift-muted);
+            line-height: 1.7;
+        }
+
+        .auth-lore h1 {
+            max-width: 560px;
+            margin: 16px 0 18px;
+            color: var(--rift-cream);
+            font-size: clamp(3rem, 7vw, 6.4rem);
+            line-height: 0.94;
+        }
+
+        .auth-lore p {
+            max-width: 520px;
+            color: #c8e5ee;
+            font-size: 1.04rem;
+            line-height: 1.9;
+        }
+
+        .register-steps {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            gap: 12px;
+            max-width: 520px;
+            margin-top: 34px;
+        }
+
+        .register-steps span {
             display: flex;
             align-items: center;
-            justify-content: center;
-            margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            gap: 12px;
+            min-height: 48px;
+            padding: 10px 14px;
+            border: 1px solid rgba(35, 232, 255, 0.32);
+            background: rgba(0, 0, 0, 0.24);
+            color: #edfaff;
+            font-weight: 800;
         }
-        .login-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            box-shadow: 0 15px 25px rgba(0,0,0,0.5);
-            padding: 40px;
-            width: 100%;
-            max-width: 450px;
-            color: white;
+
+        .register-steps i {
+            color: var(--rift-gold);
+            font-size: 1.1rem;
         }
-        .login-card input {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: white;
+
+        .poro-badge {
+            position: relative;
+            z-index: 1;
+            margin: 34px auto 0;
+            display: grid;
+            place-items: center;
+            width: 148px;
+            height: 148px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(35, 232, 255, 0.18), transparent 70%);
+            animation: pulsePoro 4.8s ease-in-out infinite;
         }
-        .login-card input:focus {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            box-shadow: none;
-            border: 1px solid #20c997; /* 註冊頁面改用薄荷綠點綴 */
+
+        .poro {
+            position: relative;
+            width: 96px;
+            height: 86px;
+            border-radius: 48% 48% 44% 44%;
+            background: #fff4df;
+            border: 4px solid #32dff0;
+            box-shadow: 0 14px 30px rgba(35, 232, 255, 0.22);
+        }
+
+        .poro::before,
+        .poro::after {
+            content: "";
+            position: absolute;
+            top: -8px;
+            width: 22px;
+            height: 24px;
+            background: #caa978;
+            border-radius: 65% 35% 45% 55%;
+            border: 3px solid #9a7848;
+        }
+
+        .poro::before {
+            left: 10px;
+            transform: rotate(-38deg);
+        }
+
+        .poro::after {
+            right: 10px;
+            transform: rotate(38deg) scaleX(-1);
+        }
+
+        .poro-eye {
+            position: absolute;
+            top: 31px;
+            width: 11px;
+            height: 14px;
+            border-radius: 50%;
+            background: #10233a;
+        }
+
+        .poro-eye.left {
+            left: 26px;
+        }
+
+        .poro-eye.right {
+            right: 26px;
+        }
+
+        .poro-nose {
+            position: absolute;
+            top: 46px;
+            left: 50%;
+            width: 13px;
+            height: 9px;
+            border-radius: 50%;
+            background: #6d4f42;
+            transform: translateX(-50%);
+        }
+
+        .poro-tongue {
+            position: absolute;
+            left: 50%;
+            bottom: 11px;
+            width: 20px;
+            height: 21px;
+            border-radius: 0 0 14px 14px;
+            background: #ff777f;
+            transform: translateX(-50%);
+        }
+
+        .auth-alert {
+            border-radius: 0;
+            border: 1px solid rgba(255, 90, 108, 0.48);
+            background: rgba(255, 90, 108, 0.16);
+            color: #ffd6dc;
+        }
+
+        .form-label {
+            color: var(--rift-cyan);
+            font-size: 0.86rem;
+            font-weight: 900;
+        }
+
+        .auth-input {
+            min-height: 52px;
+            color: #ffffff;
+            border-radius: 0;
+            border: 1px solid rgba(162, 188, 198, 0.4);
+            background: rgba(255, 255, 255, 0.075);
+        }
+
+        .auth-input:focus {
+            color: #ffffff;
+            border-color: var(--rift-cyan);
+            background: rgba(35, 232, 255, 0.08);
+            box-shadow: 0 0 0 0.18rem rgba(35, 232, 255, 0.16);
+        }
+
+        .auth-input::placeholder {
+            color: rgba(220, 239, 246, 0.48);
+        }
+
+        .auth-submit {
+            min-height: 54px;
+            border-radius: 0;
+            border: 1px solid rgba(35, 232, 255, 0.85);
+            background: linear-gradient(135deg, #18d5f0, #e3c466);
+            color: #031017;
+            font-weight: 950;
+            box-shadow: 0 18px 38px rgba(35, 232, 255, 0.2);
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .auth-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 22px 44px rgba(35, 232, 255, 0.28);
+        }
+
+        .auth-switch {
+            margin-top: 18px;
+            color: var(--rift-muted);
+        }
+
+        .auth-switch a {
+            color: var(--rift-gold);
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .auth-switch a:hover {
+            color: var(--rift-cream);
+        }
+
+        @@keyframes pulsePoro {
+            0%, 100% {
+                transform: translateY(0) scale(1);
+            }
+            50% {
+                transform: translateY(-10px) scale(1.03);
+            }
+        }
+
+        @@media (max-width: 980px) {
+            .auth-shell {
+                grid-template-columns: 1fr;
+                padding-top: 92px;
+            }
+
+            .auth-lore {
+                min-height: 420px;
+            }
+        }
+
+        @@media (max-width: 560px) {
+            .auth-shell {
+                width: min(100% - 24px, 1180px);
+            }
+
+            .auth-lore,
+            .auth-card {
+                padding: 24px;
+            }
+
+            .poro-badge {
+                margin-top: 28px;
+            }
         }
     </style>
 </head>
 <body>
-
-    <a href="/" class="btn btn-link text-info text-decoration-none position-absolute top-0 start-0 m-4">
-        <i class="bi bi-arrow-left-circle fs-3 align-middle me-2"></i>
-        <span class="fs-5 align-middle fw-bold">返回主畫面</span>
+    <a href="/" class="back-link">
+        <i class="bi bi-arrow-left"></i>
+        返回基地
     </a>
 
-    <div class="login-card">
-        <div class="text-center mb-4">
-            <i class="bi bi-person-plus-fill text-success" style="font-size: 3rem;"></i>
-            <h3 class="mt-2 fw-bold">建立新帳號</h3>
-            <p class="text-light opacity-75">加入 Peng's System</p>
-        </div>
+    <main class="auth-shell">
+        <section class="auth-card" aria-label="註冊表單">
+            <div class="auth-card-header">
+                <div class="auth-kicker">NEW SUMMONER PROFILE</div>
+                <h2>建立帳號</h2>
+                <p>建立個人檔案後，就能保存收藏、採納回饋與常用裝備組合。</p>
+            </div>
 
-        @if (ViewBag.Error != null)
-        {
-            <div class="alert alert-danger py-2 text-center" role="alert">
-                <i class="bi bi-exclamation-triangle-fill me-1"></i> @ViewBag.Error
-            </div>
-        }
+            @if (ViewBag.Error != null)
+            {
+                <div class="alert auth-alert py-2" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> @ViewBag.Error
+                </div>
+            }
 
-        <form asp-action="Register" method="post">
-            <div class="mb-3">
-                <label class="form-label text-success"><i class="bi bi-person me-1"></i>希望的使用者帳號</label>
-                <input type="text" name="username" class="form-control form-control-lg" required autocomplete="off" placeholder="例如：NewUser123">
-            </div>
-            <div class="mb-3">
-                <label class="form-label text-success"><i class="bi bi-key me-1"></i>設定密碼</label>
-                <input type="password" name="password" class="form-control form-control-lg" required placeholder="請輸入密碼">
-            </div>
-            <div class="mb-4">
-                <label class="form-label text-success"><i class="bi bi-check2-all me-1"></i>確認密碼</label>
-                <input type="password" name="confirmPassword" class="form-control form-control-lg" required placeholder="請再次輸入密碼">
-            </div>
-            <button type="submit" class="btn btn-success w-100 btn-lg text-white fw-bold mb-3">
-                立即註冊 <i class="bi bi-arrow-right-circle ms-1"></i>
-            </button>
-            
-            <div class="text-center">
-                <span class="text-white-50">已經有帳號了嗎？</span>
-                <a asp-action="Login" class="text-info text-decoration-none fw-bold ms-1">前往登入</a>
-            </div>
-        </form>
-    </div>
+            <form asp-action="Register" method="post">
+                <div class="mb-3">
+                    <label class="form-label" for="username">
+                        <i class="bi bi-person-plus me-1"></i>使用者帳號
+                    </label>
+                    <input id="username" type="text" name="username" class="form-control auth-input" required autocomplete="username" placeholder="例如：PengCarry">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="password">
+                        <i class="bi bi-shield-lock me-1"></i>設定密碼
+                    </label>
+                    <input id="password" type="password" name="password" class="form-control auth-input" required autocomplete="new-password" minlength="8" placeholder="至少 8 碼">
+                </div>
+                <div class="mb-4">
+                    <label class="form-label" for="confirmPassword">
+                        <i class="bi bi-check2-circle me-1"></i>確認密碼
+                    </label>
+                    <input id="confirmPassword" type="password" name="confirmPassword" class="form-control auth-input" required autocomplete="new-password" minlength="8" placeholder="再輸入一次密碼">
+                </div>
+                <button type="submit" class="btn auth-submit w-100">
+                    建立玩家檔案 <i class="bi bi-stars ms-1"></i>
+                </button>
 
+                <div class="auth-switch text-center">
+                    已經有帳號？
+                    <a asp-action="Login">回到登入</a>
+                </div>
+            </form>
+        </section>
+
+        <section class="auth-lore" aria-label="註冊後可使用功能">
+            <div class="auth-kicker">PROFILE PERKS</div>
+            <h1>讓推薦越用越懂你</h1>
+            <p>
+                每次收藏與採納都會留下可回看的紀錄，未來同英雄、同海克斯情境可以更快判斷你偏好的打法。
+            </p>
+            <div class="register-steps">
+                <span><i class="bi bi-1-circle-fill"></i>保存 AI 推薦與採納回饋</span>
+                <span><i class="bi bi-2-circle-fill"></i>管理自己的六件裝備組合</span>
+                <span><i class="bi bi-3-circle-fill"></i>追蹤最近查詢與收藏紀錄</span>
+            </div>
+            <div class="poro-badge" aria-hidden="true">
+                <div class="poro">
+                    <span class="poro-eye left"></span>
+                    <span class="poro-eye right"></span>
+                    <span class="poro-nose"></span>
+                    <span class="poro-tongue"></span>
+                </div>
+            </div>
+        </section>
+    </main>
 </body>
 </html>

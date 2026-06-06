@@ -1,44 +1,235 @@
-﻿@model IEnumerable<Proposal.Models.Equipment>
+@model IEnumerable<Proposal.Models.Equipment>
 
 @{
     ViewData["Title"] = "裝備管理";
+    var items = Model?.ToList() ?? new List<Proposal.Models.Equipment>();
+    var currentSearch = ViewData["CurrentFilter"]?.ToString() ?? string.Empty;
+    var currentStatFilter = ViewData["CurrentStatFilter"]?.ToString() ?? string.Empty;
+    var isAdmin = User.IsInRole("Admin");
+    var hasActiveFilter = !string.IsNullOrWhiteSpace(currentSearch)
+        || !string.IsNullOrWhiteSpace(currentStatFilter);
+    var statFilters = new[]
+    {
+        (Value: "", Label: "全部屬性", Icon: "bi-grid-3x3-gap"),
+        (Value: "ad", Label: "物理攻擊", Icon: "bi-crosshair"),
+        (Value: "ap", Label: "魔法攻擊", Icon: "bi-stars"),
+        (Value: "defense", Label: "坦度防禦", Icon: "bi-shield"),
+        (Value: "haste", Label: "技能急速", Icon: "bi-lightning-charge"),
+        (Value: "attackspeed", Label: "攻速", Icon: "bi-speedometer2"),
+        (Value: "crit", Label: "爆擊", Icon: "bi-bullseye"),
+        (Value: "lethality", Label: "物理致命", Icon: "bi-scissors"),
+        (Value: "armorpen", Label: "物理穿透", Icon: "bi-arrow-up-right"),
+        (Value: "magicpen", Label: "魔法穿透", Icon: "bi-magic"),
+        (Value: "sustain", Label: "續戰回復", Icon: "bi-droplet"),
+        (Value: "movespeed", Label: "跑速", Icon: "bi-wind")
+    };
+    var activeFilterLabel = statFilters.FirstOrDefault(filter => filter.Value == currentStatFilter).Label ?? "全部屬性";
+
+    static string FormatStat(decimal value)
+    {
+        return value % 1 == 0 ? value.ToString("0") : value.ToString("0.##");
+    }
+
+    static IReadOnlyList<(string Text, string Kind)> BuildStatPills(Proposal.Models.Equipment item)
+    {
+        var stats = new List<(string Text, string Kind)>();
+        void Add(string label, decimal value, string kind, string suffix = "")
+        {
+            if (value != 0)
+            {
+                stats.Add(($"{label} {FormatStat(value)}{suffix}", kind));
+            }
+        }
+
+        Add("HP", item.HP, "defense");
+        Add("魔力", item.Mana, "utility");
+        Add("AD", item.Attack, "attack");
+        Add("AP", item.MagicAttack, "magic");
+        Add("物防", item.PhysicalDefense, "defense");
+        Add("魔防", item.MagicDefense, "defense");
+        Add("技能急速", item.AbilityHaste, "utility");
+        Add("攻速", item.AttackSpeed, "attack", "%");
+        Add("爆擊", item.CriticalStrikeChance, "attack", "%");
+        Add("跑速", item.MoveSpeed, "utility");
+        Add("跑速", item.MoveSpeedPercent, "utility", "%");
+        Add("物理致命", item.Lethality, "pierce");
+        Add("物穿", item.ArmorPenetrationPercent, "pierce", "%");
+        Add("魔穿", item.MagicPenetration, "pierce");
+        Add("魔穿", item.MagicPenetrationPercent, "pierce", "%");
+        Add("回血", item.HealthRegen, "sustain", "%");
+        Add("回魔", item.ManaRegen, "sustain", "%");
+        Add("吸血", item.LifeSteal, "sustain", "%");
+        Add("全能吸血", item.Omnivamp, "sustain", "%");
+        Add("治療護盾", item.HealAndShieldPower, "sustain", "%");
+        Add("韌性", item.Tenacity, "defense", "%");
+        return stats;
+    }
+
+    static string? BuildItemImageUrl(Proposal.Models.Equipment item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.ItemImageUrl))
+        {
+            return item.ItemImageUrl;
+        }
+
+        return !string.IsNullOrWhiteSpace(item.DataDragonId)
+            ? $"https://ddragon.leagueoflegends.com/cdn/16.10.1/img/item/{item.DataDragonId}.png"
+            : null;
+    }
+
+    static string DisplayItemDescription(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "尚未填入裝備效果與被動說明。";
+        }
+
+        return value
+            .Replace("Data Dragon", "資料來源：Data Dragon", StringComparison.OrdinalIgnoreCase)
+            .Trim();
+    }
+
+    static string? BuildItemDescriptionSource(string? value)
+    {
+        var text = DisplayItemDescription(value);
+        var markerIndex = text.IndexOf("資料來源：", StringComparison.OrdinalIgnoreCase);
+        return markerIndex >= 0 ? text[markerIndex..].Trim() : null;
+    }
+
+    static IReadOnlyList<(string Label, string Text)> BuildItemEffectLines(Proposal.Models.Equipment item)
+    {
+        var text = DisplayItemDescription(item.ItemDescription);
+        var sourceIndex = text.IndexOf("資料來源：", StringComparison.OrdinalIgnoreCase);
+        if (sourceIndex >= 0)
+        {
+            text = text[..sourceIndex];
+        }
+
+        foreach (var phrase in BuildDuplicateStatPhrases(item))
+        {
+            text = text.Replace(phrase, string.Empty, StringComparison.OrdinalIgnoreCase);
+        }
+
+        text = text
+            .Replace(" 。", "。")
+            .Replace(" ，", "，")
+            .Replace("： ", "：")
+            .Trim(' ', '。', '，', '、', ';', '；');
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return new[] { (Label: "說明", Text: "尚未填入裝備效果與被動說明。") };
+        }
+
+        return text
+            .Replace("。 ", "。\n")
+            .Replace("； ", "；\n")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(SplitEffectLine)
+            .ToList();
+    }
+
+    static IEnumerable<string> BuildDuplicateStatPhrases(Proposal.Models.Equipment item)
+    {
+        if (item.HP != 0) yield return $"{item.HP} 生命";
+        if (item.Mana != 0) yield return $"{item.Mana} 法力";
+        if (item.Attack != 0) yield return $"{item.Attack} 物理攻擊";
+        if (item.MagicAttack != 0) yield return $"{item.MagicAttack} 魔法攻擊";
+        if (item.PhysicalDefense != 0) yield return $"{item.PhysicalDefense} 物理防禦";
+        if (item.MagicDefense != 0) yield return $"{item.MagicDefense} 魔法防禦";
+        if (item.AbilityHaste != 0) yield return $"{FormatStat(item.AbilityHaste)} 技能加速";
+        if (item.AttackSpeed != 0) yield return $"{FormatStat(item.AttackSpeed)}% 攻擊速度";
+        if (item.CriticalStrikeChance != 0) yield return $"{FormatStat(item.CriticalStrikeChance)}% 暴擊率";
+        if (item.MoveSpeed != 0) yield return $"{item.MoveSpeed} 跑速";
+        if (item.MoveSpeedPercent != 0) yield return $"{FormatStat(item.MoveSpeedPercent)}% 跑速";
+        if (item.Lethality != 0) yield return $"{FormatStat(item.Lethality)} 物理致命";
+        if (item.ArmorPenetrationPercent != 0) yield return $"{FormatStat(item.ArmorPenetrationPercent)}% 物理穿透";
+        if (item.MagicPenetration != 0) yield return $"{FormatStat(item.MagicPenetration)} 魔法穿透";
+        if (item.MagicPenetrationPercent != 0) yield return $"{FormatStat(item.MagicPenetrationPercent)}% 魔法穿透";
+    }
+
+    static (string Label, string Text) SplitEffectLine(string line)
+    {
+        var trimmed = line.Trim();
+        var firstSpace = trimmed.IndexOf(' ');
+        if (firstSpace > 0 && firstSpace <= 8 && !char.IsDigit(trimmed[0]))
+        {
+            return (trimmed[..firstSpace].Trim('：', ':'), trimmed[(firstSpace + 1)..].Trim());
+        }
+
+        var colon = trimmed.IndexOf('：');
+        if (colon > 0 && colon <= 8)
+        {
+            return (trimmed[..colon].Trim(), trimmed[(colon + 1)..].Trim());
+        }
+
+        return ("效果", trimmed);
+    }
 }
 
-<div class="container-fluid px-4">
-    <div class="d-flex flex-column flex-xl-row justify-content-between align-items-xl-center mb-4 gap-3">
-        <h2 class="text-info m-0 text-nowrap"><i class="bi bi-shield-sword me-2"></i>裝備管理庫</h2>
+<div class="equipment-page container-fluid px-4">
+    <div id="equipmentAntiForgeryToken" class="d-none">
+        @Html.AntiForgeryToken()
+    </div>
 
-        <form asp-action="Index" method="get" class="d-flex flex-grow-1 mx-xl-3" style="max-width: 400px;">
-            <div class="input-group">
-                <input type="text" name="searchString" value="@ViewData["CurrentFilter"]" class="form-control text-bg-dark border-secondary" placeholder="輸入裝備名稱查詢..." aria-label="搜尋">
-                <button class="btn btn-outline-info" type="submit"><i class="bi bi-search"></i> 查詢</button>
-        
-                @if (!string.IsNullOrEmpty(ViewData["CurrentFilter"]?.ToString()))
+    <header class="equipment-header">
+        <div>
+            <div class="eyebrow">League of Legends</div>
+            <h2><i class="bi bi-shield-sword me-2"></i>裝備管理庫</h2>
+            <p>依價格由低至高排序，支援英雄聯盟裝備圖片、完整素質與六件套裝儲存。</p>
+        </div>
+
+        <form asp-action="Index" method="get" class="equipment-search-panel">
+            <div class="filter-grid">
+                <input type="text" name="searchString" value="@currentSearch" class="form-control text-bg-dark border-secondary" placeholder="搜尋裝備名稱" aria-label="搜尋裝備名稱">
+                <select name="statFilter" class="form-select text-bg-dark border-secondary" aria-label="屬性篩選">
+                    @foreach (var filter in statFilters)
+                    {
+                        <option value="@filter.Value" selected="@(currentStatFilter == filter.Value ? "selected" : null)">@filter.Label</option>
+                    }
+                </select>
+                <button class="btn btn-outline-info" type="submit"><i class="bi bi-search"></i> 搜尋</button>
+                @if (hasActiveFilter)
                 {
-                    <a asp-action="Index" class="btn btn-outline-secondary" title="清除搜尋"><i class="bi bi-x-lg"></i></a>
+                    <a asp-action="Index" class="btn btn-outline-secondary" title="清除篩選"><i class="bi bi-x-lg"></i></a>
+                }
+            </div>
+
+            <div class="quick-filter-row" aria-label="常用屬性快速篩選">
+                @foreach (var filter in statFilters.Where(filter => !string.IsNullOrWhiteSpace(filter.Value)).Take(9))
+                {
+                    <a asp-action="Index"
+                       asp-route-searchString="@currentSearch"
+                       asp-route-statFilter="@filter.Value"
+                       class="quick-filter @(currentStatFilter == filter.Value ? "active" : "")">
+                        <i class="bi @filter.Icon"></i>@filter.Label
+                    </a>
                 }
             </div>
         </form>
 
-        <div class="d-flex gap-2 flex-wrap">
-            <div class="btn-group me-2">
-                <span class="btn btn-outline-secondary disabled border-info text-info" id="selectedCount">已選 0 / 6</span>
-                <button type="button" class="btn btn-outline-info" onclick="openLoadoutModal()">
-                    <i class="bi bi-box-seam me-1"></i> 儲存組合
-                </button>
-            </div>
-
-            <a asp-action="ExportExcel" class="btn btn-outline-success">
-                <i class="bi bi-file-earmark-excel"></i> 匯出 Excel
-            </a>
-            <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#importModal">
-                <i class="bi bi-upload"></i> 匯入資料
+        <div class="equipment-actions">
+            <span class="selection-badge" id="selectedCount">已選 0 / 6</span>
+            <button type="button" class="btn btn-outline-info" onclick="openLoadoutModal()">
+                <i class="bi bi-box-seam me-1"></i>儲存組合
             </button>
-            <a asp-action="Create" class="btn btn-info text-white fw-bold shadow-sm">
-                <i class="bi bi-plus-circle me-1"></i> 鍛造新裝備
+            <button type="button" class="btn btn-outline-warning" onclick="openManageLoadoutsModal()">
+                <i class="bi bi-tools me-1"></i>管理組合
+            </button>
+            <a asp-action="ExportExcel" class="btn btn-outline-success">
+                <i class="bi bi-file-earmark-excel"></i>匯出
             </a>
+            @if (isAdmin)
+            {
+                <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#importModal">
+                    <i class="bi bi-upload"></i>匯入
+                </button>
+                <a asp-action="Create" class="btn btn-info text-dark fw-bold">
+                    <i class="bi bi-plus-circle me-1"></i>新增裝備
+                </a>
+            }
         </div>
-    </div>
+    </header>
 
     @if (TempData["Success"] != null)
     {
@@ -55,63 +246,119 @@
         </div>
     }
 
-    <div class="card shadow-sm border-secondary bg-dark">
-        <div class="card-body p-0">
-            <table class="table table-dark table-hover table-striped mb-0 text-center align-middle">
-                <thead class="table-active">
-                    <tr>
-                        <th style="width: 50px;">選取</th>
-                        <th>ID</th>
-                        <th>裝備名稱</th>
-                        <th>血量 (HP)</th>
-                        <th>物攻 / 魔攻</th>
-                        <th>物防 / 魔防</th>
-                        <th>價錢</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (Model != null && Model.Any())
-                    {
-                        foreach (var item in Model)
-                        {
-                            <tr class="equipment-row">
-                                <td>
-                                    <input type="checkbox" class="form-check-input eq-checkbox"
-                                           value="@item.Id"
-                                           data-name="@item.Name"
-                                           onchange="updateSelectionUI()">
-                                </td>
-                                <td>@item.Id</td>
-                                <td class="fw-bold text-info">@item.Name</td>
-                                <td class="text-danger">@item.HP</td>
-                                <td>@item.Attack / <span class="text-primary">@item.MagicAttack</span></td>
-                                <td>@item.PhysicalDefense / <span class="text-primary">@item.MagicDefense</span></td>
-                                <td class="text-warning"><i class="bi bi-coin me-1"></i>@item.Price</td>
-                                <td>
-                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-light me-1">
-                                        <i class="bi bi-pencil"></i> 修改
-                                    </a>
-                                    <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger" onclick="return confirm('確定要銷毀這個裝備嗎？這可是無法復原的哦！');">
-                                        <i class="bi bi-trash"></i> 刪除
-                                    </a>
-                                </td>
-                            </tr>
-                        }
-                    }
-                    else
-                    {
-                        <tr>
-                            <td colspan="8" class="text-center text-muted py-4">
-                                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
-                                目前資料庫中沒有任何裝備資料哦！
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+    @if (!isAdmin)
+    {
+        <div class="alert alert-secondary border-0 mb-4" role="alert">
+            <i class="bi bi-lock-fill me-2"></i>一般使用者可以瀏覽、篩選裝備並儲存組合；新增、編輯、刪除與匯入資料僅限管理員使用。
         </div>
+    }
+
+    <div class="equipment-meta">
+        <span>@items.Count 件裝備</span>
+        <span>價格低到高</span>
+        <span>@activeFilterLabel</span>
     </div>
+
+    @if (!items.Any())
+    {
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <h4>目前沒有裝備資料</h4>
+            <p>可以先從 Riot Data Dragon 匯入，或手動新增自己的測試裝備。</p>
+        </div>
+    }
+    else
+    {
+        <div class="equipment-grid">
+            @foreach (var item in items)
+            {
+                var stats = BuildStatPills(item);
+                var imageUrl = BuildItemImageUrl(item);
+
+                <article class="equipment-card">
+                    <div class="card-topline"></div>
+                    <label class="card-select" title="選入組合">
+                        <input type="checkbox" class="form-check-input eq-checkbox"
+                               value="@item.Id"
+                               data-name="@item.Name">
+                    </label>
+
+                    <div class="item-identity">
+                        <div class="item-icon">
+                            @if (!string.IsNullOrWhiteSpace(imageUrl))
+                            {
+                                <img src="@imageUrl" alt="@item.Name" loading="lazy" referrerpolicy="no-referrer" onerror="this.classList.add('d-none'); this.nextElementSibling.classList.remove('d-none');">
+                                <i class="bi bi-gem d-none"></i>
+                            }
+                            else
+                            {
+                                <i class="bi bi-gem"></i>
+                            }
+                        </div>
+                        <div>
+                            <h3>@item.Name</h3>
+                            <div class="item-code">@(!string.IsNullOrWhiteSpace(item.DataDragonId) ? $"#{item.DataDragonId}" : "自訂裝備")</div>
+                        </div>
+                    </div>
+
+                    <div class="price-row">
+                        <span>價格</span>
+                        <strong><i class="bi bi-coin me-1"></i>@item.Price</strong>
+                    </div>
+
+                    <div class="stat-pill-list">
+                        @foreach (var stat in stats)
+                        {
+                            <span class="stat-pill stat-@stat.Kind">@stat.Text</span>
+                        }
+                        @if (!stats.Any())
+                        {
+                            <span class="text-secondary small">尚未填入素質</span>
+                        }
+                    </div>
+
+                    <div class="item-description" title="@DisplayItemDescription(item.ItemDescription)">
+                        <div class="mini-title">裝備介紹</div>
+                        <div class="item-effect-list">
+                            @foreach (var effect in BuildItemEffectLines(item))
+                            {
+                                <div class="item-effect-line">
+                                    <strong>@effect.Label</strong>
+                                    <span>@effect.Text</span>
+                                </div>
+                            }
+                        </div>
+                        @{
+                            var sourceText = BuildItemDescriptionSource(item.ItemDescription);
+                        }
+                        @if (!string.IsNullOrWhiteSpace(sourceText))
+                        {
+                            <div class="item-source">@sourceText</div>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(item.ItemTags))
+                    {
+                        <div class="item-tags" title="@item.ItemTags">@item.ItemTags</div>
+                    }
+
+                    @if (isAdmin)
+                    {
+                        <footer>
+                            <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info" title="修改">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="d-inline" onsubmit="return confirm('確定要刪除這個裝備嗎？');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="刪除">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </footer>
+                    }
+                </article>
+            }
+        </div>
+    }
 
     <div class="modal fade" id="loadoutSaveModal" tabindex="-1" data-bs-theme="dark">
         <div class="modal-dialog">
@@ -123,11 +370,10 @@
                 <div class="modal-body">
                     <div class="mb-4">
                         <label class="form-label text-info">組合名稱</label>
-                        <input type="text" id="loadoutName" class="form-control border-info text-white" placeholder="例如：鳴潮守岸人專屬套裝">
+                        <input type="text" id="loadoutName" class="form-control border-info text-white" placeholder="例如：布蘭德燃燒套裝">
                     </div>
-                    <h6 class="text-secondary small text-uppercase mb-3">即將儲存的裝備清單：</h6>
-                    <div id="selectedItemsPreview" class="d-flex flex-wrap gap-2">
-                    </div>
+                    <h6 class="text-secondary small text-uppercase mb-3">即將儲存的裝備清單</h6>
+                    <div id="selectedItemsPreview" class="d-flex flex-wrap gap-2"></div>
                 </div>
                 <div class="modal-footer border-top border-secondary">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
@@ -137,107 +383,950 @@
         </div>
     </div>
 
-    <div class="modal fade" id="importModal" tabindex="-1" data-bs-theme="dark">
+    <div class="modal fade" id="loadoutManageModal" tabindex="-1" data-bs-theme="dark">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content loadout-manage-modal border-info shadow-lg">
+                <div class="modal-header">
+                    <div>
+                        <div class="modal-kicker">LOADOUT VAULT</div>
+                        <h5 class="modal-title fw-bold">
+                            <i class="bi bi-tools me-2"></i>管理裝備組合
+                        </h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="loadout-manage-toolbar">
+                        <div>
+                            <strong>編輯方式</strong>
+                            <p>先載入一組，再用目前勾選的裝備更新；失效組合可以一鍵清理。</p>
+                        </div>
+                        <button type="button" class="btn btn-outline-danger" onclick="deleteInvalidLoadouts()">
+                            <i class="bi bi-trash3 me-1"></i>清理失效組合
+                        </button>
+                    </div>
+                    <div id="loadoutManageList" class="loadout-manage-list">
+                        <div class="loadout-loading">
+                            <span class="spinner-border spinner-border-sm"></span>
+                            正在讀取組合...
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-secondary">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">關閉</button>
+                </div>
+            </div>
+        </div>
     </div>
+
+    @if (isAdmin)
+    {
+        <div class="modal fade" id="importModal" tabindex="-1" data-bs-theme="dark">
+            <div class="modal-dialog">
+                <div class="modal-content border-warning shadow-lg">
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title fw-bold">
+                            <i class="bi bi-upload me-2"></i>匯入裝備資料
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <section class="mb-4">
+                            <h6 class="text-info fw-bold">從 Riot Data Dragon 匯入</h6>
+                            <p class="text-secondary small mb-3">
+                                會同步目前版本可在 ARAM 使用的可購買裝備，並更新物穿、魔穿、技能急速、圖片與描述。
+                            </p>
+                            <form asp-action="ImportLeagueItemsFromDataDragon" method="post">
+                                <button type="submit" class="btn btn-warning text-dark fw-bold w-100">
+                                    <i class="bi bi-cloud-download me-1"></i>匯入英雄聯盟裝備
+                                </button>
+                            </form>
+                        </section>
+
+                        <hr class="border-secondary" />
+
+                        <section>
+                            <h6 class="text-info fw-bold">從 Excel 匯入</h6>
+                            <p class="text-secondary small mb-3">
+                                支援新版完整欄位，也相容舊版 7 欄格式：裝備名稱、HP、物理攻擊、魔法攻擊、物理防禦、魔法防禦、價格。
+                            </p>
+                            <form asp-action="ImportExcel" method="post" enctype="multipart/form-data">
+                                <input type="file" name="excelFile" class="form-control text-bg-dark border-secondary mb-3" accept=".xlsx,.xls" required />
+                                <button type="submit" class="btn btn-outline-warning w-100">
+                                    <i class="bi bi-file-earmark-excel me-1"></i>匯入 Excel
+                                </button>
+                            </form>
+                        </section>
+                    </div>
+                    <div class="modal-footer border-top border-secondary">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
+@section Styles {
 <style>
-    /* 選中列的高亮效果 */
-    .equipment-row.selected-row {
-        background-color: rgba(13, 202, 240, 0.1) !important;
-        border-left: 4px solid #0dcaf0;
+    .equipment-page {
+        color: #f5f7fb;
+        max-width: 1800px;
+        margin: 0 auto;
     }
-    
-    .eq-checkbox {
-        width: 1.2rem;
-        height: 1.2rem;
+
+    .equipment-header {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(280px, 1fr) auto;
+        grid-template-areas:
+            "title actions"
+            "filters filters";
+        gap: 18px;
+        align-items: start;
+        margin-bottom: 22px;
+        padding: 20px;
+        border: 1px solid rgba(37, 215, 232, 0.22);
+        background:
+            linear-gradient(110deg, rgba(5, 15, 24, 0.97) 0%, rgba(7, 18, 28, 0.9) 52%, rgba(10, 26, 36, 0.74) 100%),
+            url('/images/守岸.jpg') center / cover no-repeat;
+        box-shadow: inset 0 0 0 1px rgba(255, 211, 101, 0.05), 0 22px 54px rgba(0, 0, 0, 0.28);
+        overflow: hidden;
+    }
+
+    .equipment-header::after {
+        content: "";
+        position: absolute;
+        inset: auto 0 0 0;
+        height: 3px;
+        background: linear-gradient(90deg, #15d9ff, #d4af37, transparent);
+        opacity: 0.82;
+    }
+
+    .equipment-header > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .equipment-header > div:first-child {
+        grid-area: title;
+    }
+
+    .eyebrow {
+        color: #20e0ff;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .equipment-header h2 {
+        margin: 4px 0;
+        color: #15d9ff;
+        font-size: clamp(1.65rem, 3vw, 2.35rem);
+        font-weight: 800;
+    }
+
+    .equipment-header p {
+        margin: 0;
+        color: #94a3b8;
+    }
+
+    .equipment-search-panel {
+        grid-area: filters;
+        display: grid;
+        gap: 12px;
+        max-width: 960px;
+        padding: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(4, 12, 19, 0.76);
+        backdrop-filter: blur(8px);
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: minmax(240px, 1.4fr) minmax(180px, 0.8fr) auto auto;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .quick-filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+    }
+
+    .quick-filter {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        min-height: 28px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(148, 163, 184, 0.34);
+        color: #b9c7d3;
+        background: rgba(148, 163, 184, 0.08);
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-decoration: none;
+    }
+
+    .quick-filter:hover,
+    .quick-filter.active {
+        color: #041014;
+        border-color: #15d9ff;
+        background: #15d9ff;
+    }
+
+    .equipment-actions {
+        grid-area: actions;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+        max-width: 720px;
+    }
+
+    .selection-badge,
+    .equipment-meta span {
+        display: inline-flex;
+        align-items: center;
+        min-height: 36px;
+        padding: 0 12px;
+        border: 1px solid rgba(21, 217, 255, 0.44);
+        border-radius: 6px;
+        color: #15d9ff;
+        background: rgba(21, 217, 255, 0.08);
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+
+    .selection-badge.is-full {
+        color: #ffce42;
+        border-color: rgba(255, 206, 66, 0.58);
+        background: rgba(255, 206, 66, 0.1);
+    }
+
+    .equipment-meta {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    .equipment-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 14px;
+    }
+
+    .equipment-card {
+        position: relative;
+        min-height: 350px;
+        padding: 18px;
+        border: 1px solid rgba(92, 118, 132, 0.92);
+        background: linear-gradient(145deg, rgba(26, 31, 34, 0.98), rgba(18, 21, 24, 0.98));
+        overflow: hidden;
+        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .equipment-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(21, 217, 255, 0.68);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28), inset 0 0 0 1px rgba(255, 211, 101, 0.08);
+    }
+
+    .equipment-card::after {
+        content: "";
+        position: absolute;
+        right: -1px;
+        bottom: -1px;
+        width: 28px;
+        height: 28px;
+        background: linear-gradient(135deg, transparent 49%, rgba(21, 217, 255, 0.58) 50%);
+    }
+
+    .equipment-card.selected-card {
+        border-color: #15d9ff;
+        box-shadow: 0 0 0 1px rgba(21, 217, 255, 0.28), 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .card-topline {
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        top: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #15d9ff, transparent);
+        opacity: 0.75;
+    }
+
+    .card-select {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        z-index: 2;
         cursor: pointer;
     }
 
-        .eq-checkbox:checked {
-            background-color: #0dcaf0;
-            border-color: #0dcaf0;
+    .item-identity {
+        display: grid;
+        grid-template-columns: 58px 1fr;
+        gap: 12px;
+        align-items: center;
+        padding-right: 28px;
+        margin-bottom: 14px;
+    }
+
+    .item-icon {
+        width: 58px;
+        height: 58px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(21, 217, 255, 0.24);
+        background: rgba(4, 12, 18, 0.75);
+        overflow: hidden;
+    }
+
+    .item-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .item-icon i {
+        color: #15d9ff;
+        font-size: 1.55rem;
+    }
+
+    .item-identity h3 {
+        margin: 0;
+        font-size: 1.05rem;
+        color: #ffffff;
+        font-weight: 800;
+    }
+
+    .item-code {
+        color: #7f8c99;
+        font-size: 0.82rem;
+        margin-top: 2px;
+    }
+
+    .price-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 13px;
+        padding: 8px 10px;
+        border: 1px solid rgba(255, 206, 66, 0.25);
+        background: rgba(255, 206, 66, 0.08);
+        color: #b8c1ca;
+    }
+
+    .price-row strong {
+        color: #ffd45a;
+        font-size: 1.05rem;
+    }
+
+    .stat-pill-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        min-height: 58px;
+    }
+
+    .stat-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 3px 7px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        white-space: nowrap;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .stat-attack {
+        color: #ffd3b1;
+        background: rgba(214, 103, 43, 0.18);
+        border-color: rgba(214, 103, 43, 0.42);
+    }
+
+    .stat-magic {
+        color: #e7d1ff;
+        background: rgba(147, 91, 208, 0.2);
+        border-color: rgba(147, 91, 208, 0.45);
+    }
+
+    .stat-defense {
+        color: #d7f1ff;
+        background: rgba(90, 120, 135, 0.28);
+        border-color: rgba(140, 175, 190, 0.4);
+    }
+
+    .stat-utility {
+        color: #d7fff2;
+        background: rgba(32, 201, 151, 0.14);
+        border-color: rgba(32, 201, 151, 0.38);
+    }
+
+    .stat-pierce {
+        color: #fff3b3;
+        background: rgba(183, 139, 35, 0.22);
+        border-color: rgba(255, 206, 66, 0.45);
+    }
+
+    .stat-sustain {
+        color: #d9e5ff;
+        background: rgba(73, 118, 210, 0.2);
+        border-color: rgba(92, 149, 255, 0.42);
+    }
+
+    .item-tags {
+        margin-top: 12px;
+        color: #7f8c99;
+        font-size: 0.78rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .item-description {
+        margin-top: 12px;
+        padding: 10px 11px;
+        border: 1px solid rgba(21, 217, 255, 0.18);
+        background: rgba(4, 12, 18, 0.58);
+    }
+
+    .item-description .mini-title {
+        margin-bottom: 5px;
+        color: #15d9ff;
+        font-size: 0.76rem;
+        font-weight: 900;
+    }
+
+    .item-effect-list {
+        display: grid;
+        gap: 7px;
+    }
+
+    .item-effect-line {
+        display: grid;
+        gap: 2px;
+    }
+
+    .item-effect-line strong {
+        width: fit-content;
+        color: #ffcf55;
+        font-size: 0.78rem;
+        font-weight: 900;
+    }
+
+    .item-effect-line span {
+        color: #c5d3db;
+        font-size: 0.82rem;
+        line-height: 1.55;
+    }
+
+    .item-source {
+        margin-top: 8px;
+        padding-top: 7px;
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
+        color: #8ea0aa;
+        font-size: 0.74rem;
+    }
+
+    .equipment-card footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .empty-state {
+        display: grid;
+        place-items: center;
+        min-height: 260px;
+        border: 1px dashed rgba(148, 163, 184, 0.45);
+        background: rgba(255, 255, 255, 0.035);
+        text-align: center;
+        color: #94a3b8;
+    }
+
+    .empty-state i {
+        color: #15d9ff;
+        font-size: 2.4rem;
+    }
+
+    .loadout-manage-modal .modal-header {
+        border-bottom: 1px solid rgba(21, 217, 255, 0.24);
+        background:
+            linear-gradient(135deg, rgba(4, 16, 24, 0.98), rgba(6, 35, 45, 0.9)),
+            repeating-linear-gradient(90deg, rgba(21, 217, 255, 0.04) 0 1px, transparent 1px 42px);
+    }
+
+    .modal-kicker {
+        color: #15d9ff;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+    }
+
+    .loadout-manage-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: center;
+        margin-bottom: 16px;
+        padding: 14px;
+        border: 1px solid rgba(255, 206, 66, 0.22);
+        background: rgba(255, 206, 66, 0.06);
+    }
+
+    .loadout-manage-toolbar p {
+        margin: 4px 0 0;
+        color: #9fb0ba;
+        font-size: 0.88rem;
+    }
+
+    .loadout-manage-list {
+        display: grid;
+        gap: 12px;
+    }
+
+    .loadout-row {
+        display: grid;
+        grid-template-columns: minmax(210px, 0.7fr) minmax(280px, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 14px;
+        border: 1px solid rgba(21, 217, 255, 0.22);
+        background:
+            linear-gradient(135deg, rgba(4, 14, 21, 0.98), rgba(8, 28, 38, 0.86));
+    }
+
+    .loadout-row.has-invalid {
+        border-color: rgba(255, 206, 66, 0.42);
+        background:
+            linear-gradient(135deg, rgba(34, 25, 10, 0.92), rgba(8, 28, 38, 0.86));
+    }
+
+    .loadout-name-input {
+        min-height: 40px;
+        border: 1px solid rgba(148, 163, 184, 0.42);
+        border-radius: 5px;
+        color: #fff;
+        background: rgba(255, 255, 255, 0.07);
+    }
+
+    .loadout-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        min-width: 0;
+    }
+
+    .loadout-item-chip,
+    .loadout-warning-chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 4px 8px;
+        border-radius: 5px;
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .loadout-item-chip {
+        color: #dffcff;
+        border: 1px solid rgba(21, 217, 255, 0.3);
+        background: rgba(21, 217, 255, 0.08);
+    }
+
+    .loadout-warning-chip {
+        color: #fff1b6;
+        border: 1px solid rgba(255, 206, 66, 0.4);
+        background: rgba(255, 206, 66, 0.12);
+    }
+
+    .loadout-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .loadout-loading,
+    .loadout-empty {
+        min-height: 130px;
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 10px;
+        border: 1px dashed rgba(148, 163, 184, 0.35);
+        color: #94a3b8;
+        text-align: center;
+    }
+
+    @@media (max-width: 992px) {
+        .equipment-header {
+            grid-template-columns: 1fr;
+            grid-template-areas:
+                "title"
+                "actions"
+                "filters";
+            align-items: stretch;
         }
+
+        .filter-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .equipment-actions {
+            justify-content: flex-start;
+        }
+
+        .loadout-row {
+            grid-template-columns: 1fr;
+        }
+
+        .loadout-actions {
+            justify-content: flex-start;
+        }
+    }
 </style>
+}
 
 <script>
-    // 更新介面顯示與勾選限制
-    function updateSelectionUI() {
-        const checkboxes = document.querySelectorAll('.eq-checkbox:checked');
-        const count = checkboxes.length;
-        const countBadge = document.getElementById('selectedCount');
-        
-        countBadge.innerText = `已選 ${count} / 6`;
-        
-        // 變更 Badge 顏色提示
-        if(count === 6) countBadge.classList.replace('text-info', 'text-warning');
-        else countBadge.classList.replace('text-warning', 'text-info');
+    const loadoutSelectionKey = 'proposal-equipment-loadout-selection-v1';
 
-        // 限制最多 6 個
+    function getAntiForgeryToken() {
+        return document.querySelector('#equipmentAntiForgeryToken input[name="__RequestVerificationToken"]')?.value || '';
+    }
+
+    function buildPostOptions(formData = null) {
+        const token = getAntiForgeryToken();
+        const options = {
+            method: 'POST',
+            headers: token ? { 'RequestVerificationToken': token } : {}
+        };
+
+        if (formData) {
+            options.body = formData;
+        }
+
+        return options;
+    }
+
+    function readStoredSelection() {
+        try {
+            return JSON.parse(localStorage.getItem(loadoutSelectionKey) || '[]');
+        } catch {
+            return [];
+        }
+    }
+
+    function writeStoredSelection(items) {
+        localStorage.setItem(loadoutSelectionKey, JSON.stringify(items.slice(0, 6)));
+    }
+
+    function syncVisibleCheckboxes(items) {
+        const selectedIds = new Set(items.map(item => String(item.id)));
         document.querySelectorAll('.eq-checkbox').forEach(cb => {
-            if (count >= 6 && !cb.checked) cb.disabled = true;
-            else cb.disabled = false;
-
-            // 切換整列的背景色
-            const row = cb.closest('tr');
-            if(cb.checked) row.classList.add('selected-row');
-            else row.classList.remove('selected-row');
+            cb.checked = selectedIds.has(cb.value);
         });
     }
 
-    // 開啟儲存視窗
+    function updateSelectionUI() {
+        const stored = readStoredSelection();
+        const countBadge = document.getElementById('selectedCount');
+        const count = stored.length;
+
+        countBadge.innerText = `已選 ${count} / 6`;
+        countBadge.classList.toggle('is-full', count === 6);
+
+        document.querySelectorAll('.eq-checkbox').forEach(cb => {
+            const isStored = stored.some(item => String(item.id) === cb.value);
+            cb.checked = isStored;
+            cb.disabled = count >= 6 && !isStored;
+            const card = cb.closest('.equipment-card');
+            card.classList.toggle('selected-card', isStored);
+        });
+    }
+
+    function handleEquipmentSelectionChange(event) {
+        const cb = event.target;
+        const id = Number(cb.value);
+        const name = cb.getAttribute('data-name') || `裝備 ${id}`;
+        let stored = readStoredSelection();
+
+        if (cb.checked) {
+            if (stored.length >= 6 && !stored.some(item => item.id === id)) {
+                cb.checked = false;
+                alert('最多只能選 6 件裝備。');
+                return;
+            }
+
+            if (!stored.some(item => item.id === id)) {
+                stored.push({ id, name });
+            }
+        } else {
+            stored = stored.filter(item => item.id !== id);
+        }
+
+        writeStoredSelection(stored);
+        updateSelectionUI();
+    }
+
     function openLoadoutModal() {
-        const selected = document.querySelectorAll('.eq-checkbox:checked');
+        const selected = readStoredSelection();
         if (selected.length === 0) {
-            alert('請至少勾選一件裝備！');
+            alert('請至少勾選一件裝備。');
             return;
         }
 
         const preview = document.getElementById('selectedItemsPreview');
         preview.innerHTML = '';
-        
-        selected.forEach(cb => {
+
+        selected.forEach(item => {
             const span = document.createElement('span');
             span.className = 'badge border border-info text-info p-2';
-            span.innerHTML = `<i class="bi bi-tag me-1"></i>${cb.getAttribute('data-name')}`;
+            span.innerHTML = `<i class="bi bi-tag me-1"></i>${item.name}`;
             preview.appendChild(span);
         });
 
         new bootstrap.Modal(document.getElementById('loadoutSaveModal')).show();
     }
 
-    // 送出至後端
     async function submitLoadout() {
         const name = document.getElementById('loadoutName').value.trim();
         if (!name) {
-            alert('請輸入組合名稱！');
+            alert('請輸入組合名稱。');
             return;
         }
 
-        const ids = Array.from(document.querySelectorAll('.eq-checkbox:checked'))
-                         .map(cb => parseInt(cb.value));
+        const ids = readStoredSelection().map(item => item.id);
+        if (ids.length === 0) {
+            alert('請至少勾選一件裝備。');
+            return;
+        }
 
         const formData = new FormData();
         formData.append('loadoutName', name);
         ids.forEach(id => formData.append('equipmentIds', id));
 
         try {
-            // 注意：這裡的路徑要對應你的 Controller 名稱
-            const response = await fetch('/Equipment/SaveLoadout', {
-                method: 'POST',
-                body: formData
-            });
+            const response = await fetch('/Equipment/SaveLoadout', buildPostOptions(formData));
 
             const result = await response.json();
             if (result.success) {
-                alert('🎉 ' + result.message);
+                alert(result.message);
+                localStorage.removeItem(loadoutSelectionKey);
                 location.reload();
             } else {
-                alert('❌ ' + result.message);
+                alert(result.message);
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('系統錯誤，請檢查網路。');
+            alert('儲存組合時發生錯誤。');
         }
     }
+
+    function escapeHtml(value) {
+        const div = document.createElement('div');
+        div.innerText = value ?? '';
+        return div.innerHTML;
+    }
+
+    function escapeAttribute(value) {
+        return escapeHtml(value).replaceAll('"', '&quot;');
+    }
+
+    function getSelectedEquipmentIds() {
+        return readStoredSelection().map(item => item.id);
+    }
+
+    function applyLoadoutSelection(items) {
+        const normalized = (items || [])
+            .filter(item => item && item.id)
+            .slice(0, 6)
+            .map(item => ({ id: Number(item.id), name: item.name || `裝備 ${item.id}` }));
+
+        writeStoredSelection(normalized);
+        updateSelectionUI();
+    }
+
+    async function openManageLoadoutsModal() {
+        const modalElement = document.getElementById('loadoutManageModal');
+        new bootstrap.Modal(modalElement).show();
+        await loadLoadoutList();
+    }
+
+    async function loadLoadoutList() {
+        const container = document.getElementById('loadoutManageList');
+        container.innerHTML = `
+            <div class="loadout-loading">
+                <span class="spinner-border spinner-border-sm"></span>
+                正在讀取組合...
+            </div>`;
+
+        try {
+            const response = await fetch('/Equipment/GetLoadouts');
+            const result = await response.json();
+            if (!result.success) {
+                container.innerHTML = '<div class="loadout-empty">讀取組合失敗，請稍後再試。</div>';
+                return;
+            }
+
+            renderLoadoutList(result.loadouts || []);
+        } catch (error) {
+            console.error('load loadouts failed', error);
+            container.innerHTML = '<div class="loadout-empty">讀取組合時發生錯誤。</div>';
+        }
+    }
+
+    function renderLoadoutList(loadouts) {
+        const container = document.getElementById('loadoutManageList');
+        if (!loadouts.length) {
+            container.innerHTML = `
+                <div class="loadout-empty">
+                    <i class="bi bi-box-seam"></i>
+                    <strong>目前沒有裝備組合</strong>
+                    <span>先勾選裝備並儲存，就能在這裡編輯或刪除。</span>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = loadouts.map(loadout => {
+            const itemChips = (loadout.items || []).map(item =>
+                `<span class="loadout-item-chip"><i class="bi bi-gem me-1"></i>${escapeHtml(item.name)}</span>`
+            ).join('');
+            const invalidChip = loadout.invalidCount > 0
+                ? `<span class="loadout-warning-chip"><i class="bi bi-exclamation-triangle me-1"></i>${loadout.invalidCount} 件已不存在</span>`
+                : '';
+            const itemData = encodeURIComponent(JSON.stringify(loadout.items || []));
+
+            return `
+                <section class="loadout-row ${loadout.invalidCount > 0 ? 'has-invalid' : ''}" data-loadout-id="${loadout.id}">
+                    <input class="form-control loadout-name-input" value="${escapeAttribute(loadout.loadoutName)}" aria-label="組合名稱">
+                    <div class="loadout-items">
+                        ${itemChips || '<span class="loadout-warning-chip">沒有可用裝備</span>'}
+                        ${invalidChip}
+                    </div>
+                    <div class="loadout-actions">
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="applyLoadoutFromButton(this)" data-items="${itemData}">
+                            <i class="bi bi-check2-square me-1"></i>載入
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-warning" onclick="updateLoadoutFromRow(this)">
+                            <i class="bi bi-pencil-square me-1"></i>更新
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteLoadoutFromRow(this)">
+                            <i class="bi bi-trash3 me-1"></i>刪除
+                        </button>
+                    </div>
+                </section>`;
+        }).join('');
+    }
+
+    function applyLoadoutFromButton(button) {
+        const items = JSON.parse(decodeURIComponent(button.dataset.items || '[]'));
+        if (!items.length) {
+            alert('這個組合沒有可載入的有效裝備。');
+            return;
+        }
+
+        applyLoadoutSelection(items);
+        alert('已載入到目前勾選清單，可以繼續調整後按「更新」。');
+    }
+
+    async function updateLoadoutFromRow(button) {
+        const row = button.closest('.loadout-row');
+        const loadoutId = Number(row.dataset.loadoutId);
+        const name = row.querySelector('.loadout-name-input').value.trim();
+        const ids = getSelectedEquipmentIds();
+
+        if (!name) {
+            alert('請輸入組合名稱。');
+            return;
+        }
+
+        if (!ids.length) {
+            alert('請先在裝備卡片上勾選要更新進組合的裝備。');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('loadoutId', loadoutId);
+        formData.append('loadoutName', name);
+        ids.forEach(id => formData.append('equipmentIds', id));
+
+        button.disabled = true;
+        try {
+            const response = await fetch('/Equipment/UpdateLoadout', buildPostOptions(formData));
+            const result = await response.json();
+            alert(result.message);
+            if (result.success) {
+                await loadLoadoutList();
+            }
+        } catch (error) {
+            console.error('update loadout failed', error);
+            alert('更新組合時發生錯誤。');
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    async function deleteLoadoutFromRow(button) {
+        const row = button.closest('.loadout-row');
+        const loadoutId = Number(row.dataset.loadoutId);
+        const name = row.querySelector('.loadout-name-input').value.trim();
+
+        if (!confirm(`確定要刪除「${name || '這個組合'}」嗎？`)) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('loadoutId', loadoutId);
+
+        button.disabled = true;
+        try {
+            const response = await fetch('/Equipment/DeleteLoadout', buildPostOptions(formData));
+            const result = await response.json();
+            alert(result.message);
+            if (result.success) {
+                await loadLoadoutList();
+            }
+        } catch (error) {
+            console.error('delete loadout failed', error);
+            alert('刪除組合時發生錯誤。');
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    async function deleteInvalidLoadouts() {
+        if (!confirm('確定要清理所有「組合內裝備已不存在」的失效組合嗎？')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/Equipment/DeleteInvalidLoadouts', buildPostOptions());
+            const result = await response.json();
+            alert(result.message);
+            await loadLoadoutList();
+        } catch (error) {
+            console.error('delete invalid loadouts failed', error);
+            alert('清理失效組合時發生錯誤。');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        syncVisibleCheckboxes(readStoredSelection());
+        document.querySelectorAll('.eq-checkbox').forEach(cb => {
+            cb.addEventListener('change', handleEquipmentSelectionChange);
+        });
+        updateSelectionUI();
+    });
 </script>

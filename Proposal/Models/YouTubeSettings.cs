@@ -1,4 +1,7 @@
-﻿public class YouTubeSettings
+namespace Proposal.Models
 {
-    public string ApiKey { get; set; }
+    public class YouTubeSettings
+    {
+        public string ApiKey { get; set; } = string.Empty;
+    }
 }

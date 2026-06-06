@@ -1,0 +1,599 @@
+@model Proposal.Models.LolAramGuide
+
+@{
+    ViewData["Title"] = $"{Model.LocalizedName} ARAM Mayhem 攻略";
+    var isAdmin = User.IsInRole("Admin");
+    var augmentCatalog = ViewData["AugmentCatalog"] as IReadOnlyDictionary<string, Proposal.Models.LolAramAugment>
+        ?? new Dictionary<string, Proposal.Models.LolAramAugment>(StringComparer.OrdinalIgnoreCase);
+
+    static bool IsUseful(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var text = value.Trim();
+        return !text.Contains("待人工", StringComparison.OrdinalIgnoreCase)
+            && !text.Contains("尚未完成", StringComparison.OrdinalIgnoreCase)
+            && text != "-";
+    }
+
+    static string TextOrDash(string? value)
+    {
+        return IsUseful(value) ? value!.Trim() : "目前沒有需要特別補充的內容。";
+    }
+
+    static IReadOnlyList<string> SplitValues(string? value)
+    {
+        return IsUseful(value)
+            ? value!
+                .Split(new[] { "；", ";", "、", ",", "\n", "｜", "|" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(IsUseful)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
+            : Array.Empty<string>();
+    }
+
+    static IReadOnlyList<Proposal.Services.LolAramGuideAugmentBadge> ParseAugmentBadges(
+        string? value,
+        IReadOnlyDictionary<string, Proposal.Models.LolAramAugment> catalog)
+    {
+        return Proposal.Services.LolAramGuideAugmentParser.Parse(value, catalog);
+    }
+
+    static string RarityClass(string? value)
+    {
+        return value?.Trim().ToLowerInvariant() switch
+        {
+            "prismatic" or "稜彩" or "稜彩階" or "彩色" => "rarity-prismatic",
+            "gold" or "黃金" or "黃金階" => "rarity-gold",
+            "silver" or "白銀" or "白銀階" => "rarity-silver",
+            _ => "rarity-unknown"
+        };
+    }
+
+    static string TierClass(string? tier)
+    {
+        return tier?.Trim().ToUpperInvariant() switch
+        {
+            "S" or "S+" or "S-" => "tier-s",
+            "A" or "A+" or "A-" => "tier-a",
+            "B" or "B+" or "B-" => "tier-b",
+            "C" or "C+" or "C-" => "tier-c",
+            _ => "tier-other"
+        };
+    }
+
+    static IReadOnlyList<string> BuildChampionImageUrls(Proposal.Models.LolAramGuide guide)
+    {
+        var candidates = new List<string>();
+        AddChampionCandidate(candidates, guide.ChampionName);
+        AddChampionCandidate(candidates, guide.ChampionKey);
+        return candidates
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(name => $"https://opgg-static.akamaized.net/meta/images/lol/latest/champion/{name}.png?image=q_auto%3Agood%2Cf_png%2Cw_160")
+            .ToList();
+    }
+
+    static void AddChampionCandidate(List<string> candidates, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        var clean = value.Trim()
+            .Replace("'", string.Empty)
+            .Replace(".", string.Empty)
+            .Replace(" ", string.Empty)
+            .Replace("&", string.Empty);
+
+        if (!string.IsNullOrWhiteSpace(clean))
+        {
+            candidates.Add(clean);
+            candidates.Add(char.ToUpperInvariant(clean[0]) + clean[1..]);
+        }
+    }
+
+    var championImageUrls = BuildChampionImageUrls(Model);
+    var championImageCandidates = string.Join("|", championImageUrls);
+    var augmentBadges = ParseAugmentBadges(Model.Augments, augmentCatalog);
+    var coreItems = SplitValues(Model.CoreItems);
+    var situationalItems = SplitValues(Model.SituationalItems);
+    var spells = SplitValues(Model.SummonerSpells);
+}
+
+<div class="container-fluid px-4 aram-guide-detail">
+    <section class="guide-command">
+        <div class="champion-lockup">
+            <div class="champion-frame">
+                @if (championImageUrls.Count > 0)
+                {
+                    <img
+                        src="@championImageUrls[0]"
+                        alt="@Model.LocalizedName"
+                        loading="lazy"
+                        referrerpolicy="no-referrer"
+                        data-image-index="0"
+                        data-image-candidates="@championImageCandidates"
+                        onerror="const c=(this.dataset.imageCandidates||'').split('|').filter(Boolean); const i=(Number(this.dataset.imageIndex)||0)+1; if(i<c.length){this.dataset.imageIndex=i; this.src=c[i];} else {this.classList.add('d-none'); this.nextElementSibling.classList.remove('d-none');}" />
+                    <span class="champion-fallback d-none"><i class="bi bi-person-bounding-box"></i></span>
+                }
+                else
+                {
+                    <span class="champion-fallback"><i class="bi bi-person-bounding-box"></i></span>
+                }
+            </div>
+            <div>
+                <div class="section-kicker">ARAM Mayhem Field Notes</div>
+                <h1>@Model.LocalizedName</h1>
+                <p>@Model.ChampionName · key:@Model.ChampionKey · @Model.ModeName</p>
+            </div>
+        </div>
+
+        <div class="guide-actions">
+            @if (isAdmin)
+            {
+                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-info">
+                    <i class="bi bi-pencil me-1"></i>編輯
+                </a>
+            }
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>返回列表
+            </a>
+        </div>
+    </section>
+
+    <section class="guide-brief">
+        <div class="brief-meta">
+            <span>@Model.PatchVersion</span>
+            <span>Updated @Model.UpdatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</span>
+            @if (!string.IsNullOrWhiteSpace(Model.SourceUrl))
+            {
+                <a href="@Model.SourceUrl" target="_blank" rel="noopener noreferrer">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>來源
+                </a>
+            }
+        </div>
+        <h2>英雄定位</h2>
+        <p>@TextOrDash(Model.RoleSummary)</p>
+    </section>
+
+    <div class="guide-layout">
+        <section class="tactical-panel item-panel">
+            <div class="panel-heading">
+                <span>01</span>
+                <h2>裝備方向</h2>
+            </div>
+
+            <div class="loadout-block primary">
+                <h3>核心裝備</h3>
+                <div class="token-grid">
+                    @foreach (var item in coreItems)
+                    {
+                        <span class="loadout-token">@item</span>
+                    }
+                </div>
+            </div>
+
+            @if (situationalItems.Count > 0)
+            {
+                <div class="loadout-block">
+                    <h3>情境裝備</h3>
+                    <div class="token-grid">
+                        @foreach (var item in situationalItems)
+                        {
+                            <span class="loadout-token subtle">@item</span>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="quick-row">
+                <div>
+                    <span>召喚師技能</span>
+                    <strong>@(spells.Count > 0 ? string.Join(" / ", spells) : TextOrDash(Model.SummonerSpells))</strong>
+                </div>
+                <div>
+                    <span>技能順序</span>
+                    <strong>@TextOrDash(Model.SkillOrder)</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="tactical-panel augment-panel">
+            <div class="panel-heading">
+                <span>02</span>
+                <h2>優先海克斯</h2>
+            </div>
+
+            @if (augmentBadges.Count == 0)
+            {
+                <p class="empty-note">@TextOrDash(Model.Augments)</p>
+            }
+            else
+            {
+                <div class="augment-badge-list">
+                    @foreach (var augment in augmentBadges)
+                    {
+                        <span class="augment-mini-badge @RarityClass(augment.Rarity) @TierClass(augment.Tier)">
+                            <span>@augment.Name</span>
+                            @if (!string.IsNullOrWhiteSpace(augment.Tier))
+                            {
+                                <strong>@augment.Tier</strong>
+                            }
+                        </span>
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="tactical-panel notes-panel">
+            <div class="panel-heading">
+                <span>03</span>
+                <h2>打法筆記</h2>
+            </div>
+
+            <div class="note-grid">
+                <article>
+                    <h3>打法重點</h3>
+                    <p>@TextOrDash(Model.PlaystyleTips)</p>
+                </article>
+                <article>
+                    <h3>站位重點</h3>
+                    <p>@TextOrDash(Model.PositioningTips)</p>
+                </article>
+                <article>
+                    <h3>弱點 / 注意事項</h3>
+                    <p>@TextOrDash(Model.Weaknesses)</p>
+                </article>
+                <article>
+                    <h3>人工備註</h3>
+                    <p>@TextOrDash(Model.Notes)</p>
+                </article>
+            </div>
+        </section>
+    </div>
+</div>
+
+@section Styles {
+<style>
+    .aram-guide-detail {
+        padding-bottom: 48px;
+    }
+
+    .guide-command,
+    .guide-brief,
+    .tactical-panel {
+        border: 1px solid rgba(36, 220, 232, 0.22);
+        background:
+            linear-gradient(135deg, rgba(13, 34, 42, 0.94), rgba(5, 10, 16, 0.96)),
+            repeating-linear-gradient(90deg, rgba(36, 220, 232, 0.05) 0 1px, transparent 1px 72px);
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.25);
+    }
+
+    .guide-command {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        align-items: center;
+        min-height: 132px;
+        padding: 26px;
+        margin-bottom: 18px;
+        border-radius: 8px;
+    }
+
+    .champion-lockup {
+        display: grid;
+        grid-template-columns: 84px minmax(0, 1fr);
+        gap: 18px;
+        align-items: center;
+        min-width: 0;
+    }
+
+    .champion-frame,
+    .champion-frame img,
+    .champion-fallback {
+        width: 84px;
+        height: 84px;
+        border-radius: 8px;
+    }
+
+    .champion-frame {
+        position: relative;
+        padding: 3px;
+        background: linear-gradient(135deg, #22f0ff, #f4d35e);
+    }
+
+    .champion-frame img,
+    .champion-fallback {
+        object-fit: cover;
+        background: #07111d;
+        border: 1px solid rgba(0, 0, 0, 0.75);
+    }
+
+    .champion-fallback {
+        display: grid;
+        place-items: center;
+        color: #22f0ff;
+        font-size: 1.7rem;
+    }
+
+    .section-kicker {
+        color: #22f0ff;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0;
+        text-transform: uppercase;
+    }
+
+    .champion-lockup h1 {
+        margin: 4px 0;
+        color: #26e5ff;
+        font-size: clamp(2rem, 4vw, 3.25rem);
+        font-weight: 900;
+    }
+
+    .champion-lockup p,
+    .guide-brief p,
+    .note-grid p {
+        color: #d7edf3;
+        margin: 0;
+        line-height: 1.75;
+    }
+
+    .guide-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+
+    .guide-brief {
+        padding: 22px 24px;
+        margin-bottom: 22px;
+        border-radius: 8px;
+    }
+
+    .brief-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+
+    .brief-meta span,
+    .brief-meta a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        padding: 3px 10px;
+        border: 1px solid rgba(36, 220, 232, 0.45);
+        color: #22f0ff;
+        text-decoration: none;
+        font-size: 0.82rem;
+        font-weight: 800;
+    }
+
+    .brief-meta span:first-child {
+        border-color: rgba(244, 211, 94, 0.75);
+        color: #ffd84d;
+    }
+
+    .guide-brief h2,
+    .panel-heading h2 {
+        color: #fff8db;
+        font-size: 1.15rem;
+        font-weight: 900;
+        margin: 0;
+    }
+
+    .guide-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 22px;
+    }
+
+    .tactical-panel {
+        padding: 22px;
+        border-radius: 8px;
+    }
+
+    .notes-panel {
+        grid-column: 1 / -1;
+    }
+
+    .panel-heading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+
+    .panel-heading span {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border: 1px solid rgba(36, 220, 232, 0.6);
+        color: #22f0ff;
+        font-weight: 900;
+        background: rgba(36, 220, 232, 0.08);
+    }
+
+    .loadout-block + .loadout-block {
+        margin-top: 18px;
+    }
+
+    .loadout-block h3,
+    .note-grid h3 {
+        color: #22f0ff;
+        font-size: 0.92rem;
+        font-weight: 900;
+        margin-bottom: 10px;
+    }
+
+    .token-grid,
+    .augment-badge-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .loadout-token {
+        display: inline-flex;
+        align-items: center;
+        min-height: 34px;
+        padding: 6px 11px;
+        border: 1px solid rgba(244, 211, 94, 0.55);
+        color: #ffe68a;
+        background: rgba(127, 92, 15, 0.42);
+        font-weight: 900;
+    }
+
+    .loadout-token.subtle {
+        border-color: rgba(36, 220, 232, 0.38);
+        color: #d7edf3;
+        background: rgba(52, 75, 86, 0.55);
+    }
+
+    .quick-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .quick-row div {
+        padding: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(0, 0, 0, 0.18);
+    }
+
+    .quick-row span {
+        display: block;
+        color: #8cb6c2;
+        font-size: 0.78rem;
+        margin-bottom: 5px;
+    }
+
+    .quick-row strong {
+        color: #f6fbff;
+        font-size: 0.94rem;
+    }
+
+    .augment-mini-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 230px;
+        min-height: 30px;
+        padding: 5px 9px;
+        border-radius: 4px;
+        font-size: 0.82rem;
+        font-weight: 900;
+        line-height: 1.2;
+    }
+
+    .augment-mini-badge span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .augment-mini-badge strong {
+        min-width: 24px;
+        padding: 1px 6px;
+        border-radius: 3px;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .rarity-prismatic {
+        color: #f2dcff;
+        background: rgba(119, 64, 154, 0.72);
+        border: 1px solid rgba(223, 173, 255, 0.5);
+    }
+
+    .rarity-gold {
+        color: #fff1b8;
+        background: rgba(122, 88, 20, 0.72);
+        border: 1px solid rgba(255, 214, 93, 0.48);
+    }
+
+    .rarity-silver,
+    .rarity-unknown {
+        color: #dbeef5;
+        background: rgba(75, 92, 103, 0.72);
+        border: 1px solid rgba(203, 222, 230, 0.35);
+    }
+
+    .tier-s strong {
+        color: #fff1a7;
+    }
+
+    .tier-a strong {
+        color: #aef4ff;
+    }
+
+    .tier-b strong,
+    .tier-c strong,
+    .tier-other strong {
+        color: #d8e1e6;
+    }
+
+    .note-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .note-grid article {
+        min-height: 128px;
+        padding: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(0, 0, 0, 0.18);
+    }
+
+    .empty-note {
+        color: #9fb9c1;
+        margin: 0;
+    }
+
+    @@media (max-width: 992px) {
+        .guide-command,
+        .guide-layout,
+        .note-grid,
+        .quick-row {
+            grid-template-columns: 1fr;
+        }
+
+        .guide-command {
+            display: grid;
+        }
+
+        .guide-actions {
+            justify-content: flex-start;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .aram-guide-detail {
+            padding-left: 12px !important;
+            padding-right: 12px !important;
+        }
+
+        .champion-lockup {
+            grid-template-columns: 64px minmax(0, 1fr);
+        }
+
+        .champion-frame,
+        .champion-frame img,
+        .champion-fallback {
+            width: 64px;
+            height: 64px;
+        }
+    }
+</style>
+}

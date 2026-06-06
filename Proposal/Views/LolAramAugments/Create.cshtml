@@ -1,0 +1,45 @@
+@model Proposal.Models.LolAramAugment
+
+@{
+    ViewData["Title"] = "新增海克斯知識";
+}
+
+<div class="container-fluid px-4 augment-page">
+    <div class="d-flex justify-content-between align-items-center mb-4 gap-3">
+        <h2 class="text-info m-0">
+            <i class="bi bi-stars me-2"></i>新增海克斯知識
+        </h2>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>返回列表
+        </a>
+    </div>
+
+    <section class="augment-panel border border-secondary rounded p-4">
+        <form asp-action="Create" method="post">
+            <partial name="_AugmentForm" model="Model" />
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <a asp-action="Index" class="btn btn-outline-secondary">取消</a>
+                <button type="submit" class="btn btn-info text-dark fw-bold">
+                    <i class="bi bi-save me-1"></i>儲存海克斯
+                </button>
+            </div>
+        </form>
+    </section>
+</div>
+
+@section Styles {
+<style>
+    .augment-page .augment-panel {
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .augment-page textarea {
+        resize: vertical;
+    }
+</style>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,49 @@
+@model Proposal.Models.LolAramGuide
+
+@{
+    ViewData["Title"] = "編輯 ARAM 知識";
+}
+
+<div class="container-fluid px-4 aram-guide-page">
+    <div class="d-flex justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <h2 class="text-info m-0">
+                <i class="bi bi-database-gear me-2"></i>編輯 ARAM 知識
+            </h2>
+            <div class="text-secondary mt-1">@Model.ChampionName / @Model.ModeName</div>
+        </div>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>返回列表
+        </a>
+    </div>
+
+    <section class="guide-panel border border-secondary rounded p-4">
+        <form asp-action="Edit" method="post">
+            <partial name="_GuideForm" model="Model" />
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-light">查看內容</a>
+                <a asp-action="Index" class="btn btn-outline-secondary">取消</a>
+                <button type="submit" class="btn btn-info text-dark fw-bold">
+                    <i class="bi bi-save me-1"></i>儲存修改
+                </button>
+            </div>
+        </form>
+    </section>
+</div>
+
+@section Styles {
+<style>
+    .aram-guide-page .guide-panel {
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .aram-guide-page textarea {
+        resize: vertical;
+    }
+</style>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

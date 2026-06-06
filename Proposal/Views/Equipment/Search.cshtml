@@ -1,62 +1,414 @@
-﻿@model IEnumerable<Proposal.Models.Equipment>
+@model IEnumerable<Proposal.Models.Equipment>
 
-<div class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-info fw-bold">
-            <i class="bi bi-cpu-fill me-2"></i>搜尋結果：
-            <span class="text-white">"@ViewData["SearchTerm"]"</span>
-        </h2>
-        <a href="/" class="btn btn-outline-info btn-sm">返回首頁</a>
+@{
+    ViewData["Title"] = "裝備搜尋";
+    var items = Model?.ToList() ?? new List<Proposal.Models.Equipment>();
+
+    static string FormatStat(decimal value)
+    {
+        return value % 1 == 0 ? value.ToString("0") : value.ToString("0.##");
+    }
+
+    static IReadOnlyList<(string Text, string Kind)> BuildStatPills(Proposal.Models.Equipment item)
+    {
+        var stats = new List<(string Text, string Kind)>();
+        void Add(string label, decimal value, string kind, string suffix = "")
+        {
+            if (value != 0)
+            {
+                stats.Add(($"{label} {FormatStat(value)}{suffix}", kind));
+            }
+        }
+
+        Add("HP", item.HP, "defense");
+        Add("魔力", item.Mana, "utility");
+        Add("AD", item.Attack, "attack");
+        Add("AP", item.MagicAttack, "magic");
+        Add("物防", item.PhysicalDefense, "defense");
+        Add("魔防", item.MagicDefense, "defense");
+        Add("技能急速", item.AbilityHaste, "utility");
+        Add("攻速", item.AttackSpeed, "attack", "%");
+        Add("爆擊", item.CriticalStrikeChance, "attack", "%");
+        Add("物理致命", item.Lethality, "pierce");
+        Add("物穿", item.ArmorPenetrationPercent, "pierce", "%");
+        Add("魔穿", item.MagicPenetration, "pierce");
+        Add("魔穿", item.MagicPenetrationPercent, "pierce", "%");
+        Add("回血", item.HealthRegen, "sustain", "%");
+        Add("回魔", item.ManaRegen, "sustain", "%");
+        Add("吸血", item.LifeSteal, "sustain", "%");
+        Add("全能吸血", item.Omnivamp, "sustain", "%");
+        Add("治療護盾", item.HealAndShieldPower, "sustain", "%");
+        return stats;
+    }
+
+    static string? BuildItemImageUrl(Proposal.Models.Equipment item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.ItemImageUrl))
+        {
+            return item.ItemImageUrl;
+        }
+
+        return !string.IsNullOrWhiteSpace(item.DataDragonId)
+            ? $"https://ddragon.leagueoflegends.com/cdn/16.10.1/img/item/{item.DataDragonId}.png"
+            : null;
+    }
+
+    static string DisplayItemDescription(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "尚未填入裝備效果與被動說明。";
+        }
+
+        return value
+            .Replace("Data Dragon", "資料來源：Data Dragon", StringComparison.OrdinalIgnoreCase)
+            .Trim();
+    }
+
+    static string? BuildItemDescriptionSource(string? value)
+    {
+        var text = DisplayItemDescription(value);
+        var markerIndex = text.IndexOf("資料來源：", StringComparison.OrdinalIgnoreCase);
+        return markerIndex >= 0 ? text[markerIndex..].Trim() : null;
+    }
+
+    static IReadOnlyList<(string Label, string Text)> BuildItemEffectLines(Proposal.Models.Equipment item)
+    {
+        var text = DisplayItemDescription(item.ItemDescription);
+        var sourceIndex = text.IndexOf("資料來源：", StringComparison.OrdinalIgnoreCase);
+        if (sourceIndex >= 0)
+        {
+            text = text[..sourceIndex];
+        }
+
+        foreach (var phrase in BuildDuplicateStatPhrases(item))
+        {
+            text = text.Replace(phrase, string.Empty, StringComparison.OrdinalIgnoreCase);
+        }
+
+        text = text
+            .Replace(" 。", "。")
+            .Replace(" ，", "，")
+            .Replace("： ", "：")
+            .Trim(' ', '。', '，', '、', ';', '；');
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return new[] { (Label: "說明", Text: "尚未填入裝備效果與被動說明。") };
+        }
+
+        return text
+            .Replace("。 ", "。\n")
+            .Replace("； ", "；\n")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(SplitEffectLine)
+            .ToList();
+    }
+
+    static IEnumerable<string> BuildDuplicateStatPhrases(Proposal.Models.Equipment item)
+    {
+        if (item.HP != 0) yield return $"{item.HP} 生命";
+        if (item.Mana != 0) yield return $"{item.Mana} 法力";
+        if (item.Attack != 0) yield return $"{item.Attack} 物理攻擊";
+        if (item.MagicAttack != 0) yield return $"{item.MagicAttack} 魔法攻擊";
+        if (item.PhysicalDefense != 0) yield return $"{item.PhysicalDefense} 物理防禦";
+        if (item.MagicDefense != 0) yield return $"{item.MagicDefense} 魔法防禦";
+        if (item.AbilityHaste != 0) yield return $"{FormatStat(item.AbilityHaste)} 技能加速";
+        if (item.AttackSpeed != 0) yield return $"{FormatStat(item.AttackSpeed)}% 攻擊速度";
+        if (item.CriticalStrikeChance != 0) yield return $"{FormatStat(item.CriticalStrikeChance)}% 暴擊率";
+        if (item.MoveSpeed != 0) yield return $"{item.MoveSpeed} 跑速";
+        if (item.MoveSpeedPercent != 0) yield return $"{FormatStat(item.MoveSpeedPercent)}% 跑速";
+        if (item.Lethality != 0) yield return $"{FormatStat(item.Lethality)} 物理致命";
+        if (item.ArmorPenetrationPercent != 0) yield return $"{FormatStat(item.ArmorPenetrationPercent)}% 物理穿透";
+        if (item.MagicPenetration != 0) yield return $"{FormatStat(item.MagicPenetration)} 魔法穿透";
+        if (item.MagicPenetrationPercent != 0) yield return $"{FormatStat(item.MagicPenetrationPercent)}% 魔法穿透";
+    }
+
+    static (string Label, string Text) SplitEffectLine(string line)
+    {
+        var trimmed = line.Trim();
+        var firstSpace = trimmed.IndexOf(' ');
+        if (firstSpace > 0 && firstSpace <= 8 && !char.IsDigit(trimmed[0]))
+        {
+            return (trimmed[..firstSpace].Trim('：', ':'), trimmed[(firstSpace + 1)..].Trim());
+        }
+
+        var colon = trimmed.IndexOf('：');
+        if (colon > 0 && colon <= 8)
+        {
+            return (trimmed[..colon].Trim(), trimmed[(colon + 1)..].Trim());
+        }
+
+        return ("效果", trimmed);
+    }
+}
+
+<div class="container-fluid px-4 equipment-search-page">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
+        <div>
+            <div class="text-info small fw-bold text-uppercase">Equipment Search</div>
+            <h2 class="text-info fw-bold mb-1">
+                <i class="bi bi-search me-2"></i>搜尋結果
+                <span class="text-white">「@ViewData["SearchTerm"]」</span>
+            </h2>
+            <p class="text-secondary mb-0">@items.Count 件符合條件，依價格由低至高排列。</p>
+        </div>
+        <a asp-action="Index" class="btn btn-outline-info">
+            <i class="bi bi-arrow-left me-1"></i>回裝備管理庫
+        </a>
     </div>
 
-    @if (!Model.Any())
+    @if (!items.Any())
     {
-        <div class="text-center p-5 rounded" style="background: rgba(255,255,255,0.05); border: 1px dashed #666;">
-            <i class="bi bi-search fs-1 text-secondary mb-3 d-block"></i>
-            <h4 class="text-secondary">找不到相關裝備</h4>
-            <p class="text-muted">請確認您的裝備庫中是否已有該名稱的裝備。</p>
+        <div class="empty-state">
+            <i class="bi bi-search"></i>
+            <h4>找不到符合的裝備</h4>
+            <p>換個關鍵字，或先從 Data Dragon 匯入完整裝備資料。</p>
         </div>
     }
     else
     {
-        <div class="row row-cols-1 row-cols-md-3 g-4">
-            @foreach (var item in Model)
+        <div class="equipment-grid">
+            @foreach (var item in items)
             {
-                <div class="col">
-                    <div class="card h-100 bg-dark text-white border-secondary shadow-lg" style="transition: transform 0.2s;">
-                        <div class="card-body">
-                            <h5 class="card-title text-warning fw-bold">@item.Name</h5>
-                            <hr class="border-secondary">
-                            <ul class="list-unstyled">
-                                <li class="d-flex justify-content-between">
-                                    <span class="text-muted">生命值 (HP):</span>
-                                    <span class="text-danger fw-bold">@item.HP</span>
-                                </li>
-                                <li class="d-flex justify-content-between">
-                                    <span class="text-muted">物理攻擊:</span>
-                                    <span class="text-warning fw-bold">@item.Attack</span>
-                                </li>
-                                <li class="d-flex justify-content-between">
-                                    <span class="text-muted">裝備價格:</span>
-                                    <span class="text-success fw-bold">@item.Price</span>
-                                </li>
-                            </ul>
+                var stats = BuildStatPills(item);
+                var imageUrl = BuildItemImageUrl(item);
+
+                <article class="equipment-card">
+                    <div class="item-identity">
+                        <div class="item-icon">
+                            @if (!string.IsNullOrWhiteSpace(imageUrl))
+                            {
+                                <img src="@imageUrl" alt="@item.Name" loading="lazy" referrerpolicy="no-referrer" onerror="this.classList.add('d-none'); this.nextElementSibling.classList.remove('d-none');">
+                                <i class="bi bi-gem d-none"></i>
+                            }
+                            else
+                            {
+                                <i class="bi bi-gem"></i>
+                            }
                         </div>
-                        <div class="card-footer bg-transparent border-secondary text-center">
-                            <a href="/Calculator/Index" class="btn btn-primary btn-sm w-100">
-                                <i class="bi bi-calculator me-1"></i>帶入計算機
-                            </a>
+                        <div>
+                            <h3>@item.Name</h3>
+                            <div class="item-code">@(!string.IsNullOrWhiteSpace(item.DataDragonId) ? $"#{item.DataDragonId}" : "自訂裝備")</div>
                         </div>
                     </div>
-                </div>
+
+                    <div class="price-row">
+                        <span>價格</span>
+                        <strong><i class="bi bi-coin me-1"></i>@item.Price</strong>
+                    </div>
+
+                    <div class="stat-pill-list">
+                        @foreach (var stat in stats)
+                        {
+                            <span class="stat-pill stat-@stat.Kind">@stat.Text</span>
+                        }
+                        @if (!stats.Any())
+                        {
+                            <span class="text-secondary small">尚未填入素質</span>
+                        }
+                    </div>
+
+                    <div class="item-description" title="@DisplayItemDescription(item.ItemDescription)">
+                        <div class="mini-title">裝備介紹</div>
+                        <div class="item-effect-list">
+                            @foreach (var effect in BuildItemEffectLines(item))
+                            {
+                                <div class="item-effect-line">
+                                    <strong>@effect.Label</strong>
+                                    <span>@effect.Text</span>
+                                </div>
+                            }
+                        </div>
+                        @{
+                            var sourceText = BuildItemDescriptionSource(item.ItemDescription);
+                        }
+                        @if (!string.IsNullOrWhiteSpace(sourceText))
+                        {
+                            <div class="item-source">@sourceText</div>
+                        }
+                    </div>
+
+                    <footer>
+                        <a asp-controller="Calculator" asp-action="Index" class="btn btn-sm btn-outline-info w-100">
+                            <i class="bi bi-calculator me-1"></i>帶入計算器
+                        </a>
+                    </footer>
+                </article>
             }
         </div>
     }
 </div>
 
+@section Styles {
 <style>
-    .card:hover {
-        transform: translateY(-5px);
-        border-color: #0dcaf0 !important;
+    .equipment-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 14px;
+    }
+
+    .equipment-card {
+        min-height: 340px;
+        padding: 18px;
+        border: 1px solid rgba(92, 118, 132, 0.92);
+        background: linear-gradient(145deg, rgba(26, 31, 34, 0.98), rgba(18, 21, 24, 0.98));
+        position: relative;
+        overflow: hidden;
+    }
+
+    .equipment-card:hover {
+        border-color: #15d9ff;
+        transform: translateY(-2px);
+        transition: 0.18s ease;
+    }
+
+    .item-identity {
+        display: grid;
+        grid-template-columns: 58px 1fr;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+
+    .item-icon {
+        width: 58px;
+        height: 58px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(21, 217, 255, 0.24);
+        background: rgba(4, 12, 18, 0.75);
+        overflow: hidden;
+    }
+
+    .item-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .item-icon i {
+        color: #15d9ff;
+        font-size: 1.55rem;
+    }
+
+    .item-identity h3 {
+        margin: 0;
+        color: #fff;
+        font-size: 1.05rem;
+        font-weight: 800;
+    }
+
+    .item-code {
+        color: #7f8c99;
+        font-size: 0.82rem;
+        margin-top: 2px;
+    }
+
+    .price-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 13px;
+        padding: 8px 10px;
+        border: 1px solid rgba(255, 206, 66, 0.25);
+        background: rgba(255, 206, 66, 0.08);
+        color: #b8c1ca;
+    }
+
+    .price-row strong {
+        color: #ffd45a;
+    }
+
+    .stat-pill-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        min-height: 58px;
+    }
+
+    .stat-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 3px 7px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        white-space: nowrap;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .stat-attack { color: #ffd3b1; background: rgba(214, 103, 43, 0.18); border-color: rgba(214, 103, 43, 0.42); }
+    .stat-magic { color: #e7d1ff; background: rgba(147, 91, 208, 0.2); border-color: rgba(147, 91, 208, 0.45); }
+    .stat-defense { color: #d7f1ff; background: rgba(90, 120, 135, 0.28); border-color: rgba(140, 175, 190, 0.4); }
+    .stat-utility { color: #d7fff2; background: rgba(32, 201, 151, 0.14); border-color: rgba(32, 201, 151, 0.38); }
+    .stat-pierce { color: #fff3b3; background: rgba(183, 139, 35, 0.22); border-color: rgba(255, 206, 66, 0.45); }
+    .stat-sustain { color: #d9e5ff; background: rgba(73, 118, 210, 0.2); border-color: rgba(92, 149, 255, 0.42); }
+
+    .item-description {
+        margin-top: 12px;
+        padding: 10px 11px;
+        border: 1px solid rgba(21, 217, 255, 0.18);
+        background: rgba(4, 12, 18, 0.58);
+    }
+
+    .item-description .mini-title {
+        margin-bottom: 5px;
+        color: #15d9ff;
+        font-size: 0.76rem;
+        font-weight: 900;
+    }
+
+    .item-effect-list {
+        display: grid;
+        gap: 7px;
+    }
+
+    .item-effect-line {
+        display: grid;
+        gap: 2px;
+    }
+
+    .item-effect-line strong {
+        width: fit-content;
+        color: #ffcf55;
+        font-size: 0.78rem;
+        font-weight: 900;
+    }
+
+    .item-effect-line span {
+        color: #c5d3db;
+        font-size: 0.82rem;
+        line-height: 1.55;
+    }
+
+    .item-source {
+        margin-top: 8px;
+        padding-top: 7px;
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
+        color: #8ea0aa;
+        font-size: 0.74rem;
+    }
+
+    .equipment-card footer {
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .empty-state {
+        display: grid;
+        place-items: center;
+        min-height: 260px;
+        border: 1px dashed rgba(148, 163, 184, 0.45);
+        background: rgba(255, 255, 255, 0.035);
+        text-align: center;
+        color: #94a3b8;
+    }
+
+    .empty-state i {
+        color: #15d9ff;
+        font-size: 2.4rem;
     }
 </style>
+}

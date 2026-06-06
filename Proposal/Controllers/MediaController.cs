@@ -1,62 +1,50 @@
-﻿using Proposal.Models;
 using Microsoft.AspNetCore.Mvc;
-using System.Net.Http;
-using Microsoft.Extensions.Options;
 
-public class MediaController : Controller
+namespace Proposal.Controllers
 {
-
-    private readonly string _apiKey;
-
-
-
-
-
-    public MediaController(IConfiguration configuration)
+    public class MediaController : Controller
     {
-        // 從設定檔讀取
-        _apiKey = configuration["YouTubeSettings:ApiKey"];
-    }
+        private readonly string _apiKey;
 
-
-
-    public IActionResult Highlights()
-    {
-        return View();
-    }
-
-
-// 精彩操作首頁
-[HttpGet]
-    public async Task<IActionResult> GetYouTubeVideos(string query)
-    {
-        if (string.IsNullOrEmpty(query)) return BadRequest("請輸入關鍵字");
-
-        // 此時這裡的 _apiKey 就不會報錯了，因為它已經定義在上面
-        try
+        public MediaController(IConfiguration configuration)
         {
-            using (var client = new HttpClient())
+            _apiKey = configuration["YouTubeSettings:ApiKey"] ?? string.Empty;
+        }
+
+        public IActionResult Highlights()
+        {
+            return View();
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetYouTubeVideos(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
             {
-                string url = $"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q={Uri.EscapeDataString(query)}&type=video&key={_apiKey}";
+                return BadRequest("請輸入關鍵字");
+            }
+
+            if (string.IsNullOrWhiteSpace(_apiKey))
+            {
+                return StatusCode(503, "尚未設定 YouTube API Key。");
+            }
+
+            try
+            {
+                using var client = new HttpClient();
+                var url = $"https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=5&q={Uri.EscapeDataString(query)}&type=video&key={_apiKey}";
 
                 var response = await client.GetAsync(url);
                 var content = await response.Content.ReadAsStringAsync();
 
-                if (response.IsSuccessStatusCode)
-                {
-                    return Content(content, "application/json");
-                }
-                else
-                {
-                    // 這裡可以幫你檢查為什麼 API 沒過 (例如 Key 錯了)
-                    return StatusCode((int)response.StatusCode, content);
-                }
+                return response.IsSuccessStatusCode
+                    ? Content(content, "application/json")
+                    : StatusCode((int)response.StatusCode, content);
             }
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, ex.Message);
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
     }
 }
-

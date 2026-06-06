@@ -5,7 +5,9 @@
 # .NET Core build folders
 bin/
 obj/
+build-check/
 .vs/
+Reports/
 
 # Common node modules locations
 /node_modules
@@ -88,10 +90,13 @@ web_modules/
 
 # dotenv environment variable files
 .env
+.env.*
 .env.development.local
 .env.test.local
 .env.production.local
 .env.local
+*.publishsettings
+secrets.json
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

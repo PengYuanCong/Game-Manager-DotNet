@@ -1,125 +1,415 @@
-﻿@{
+@{
     ViewData["Title"] = "遊戲基地首頁";
+
+    var flowSteps = new[]
+    {
+        new
+        {
+            Number = "01",
+            Title = "整理資料",
+            Text = "先把英雄、海克斯與裝備匯入知識庫。",
+            Icon = "bi-database",
+            Action = "前往知識庫",
+            Controller = "LolAramAugments",
+            ActionName = "Index"
+        },
+        new
+        {
+            Number = "02",
+            Title = "篩選裝備",
+            Text = "用價格、物穿、魔穿、技能急速等屬性找到候選裝備。",
+            Icon = "bi-funnel",
+            Action = "管理裝備",
+            Controller = "Equipment",
+            ActionName = "Index"
+        },
+        new
+        {
+            Number = "03",
+            Title = "計算效率",
+            Text = "比較金錢效率、穿透後傷害倍率與有效生命值。",
+            Icon = "bi-calculator",
+            Action = "打開公式",
+            Controller = "Calculator",
+            ActionName = "Index"
+        },
+        new
+        {
+            Number = "04",
+            Title = "輸入對局",
+            Text = "填入英雄、目前海克斯、裝備散件與對局狀況。",
+            Icon = "bi-controller",
+            Action = "開始推薦",
+            Controller = "AiRecommendation",
+            ActionName = "Index"
+        },
+        new
+        {
+            Number = "05",
+            Title = "拿到建議",
+            Text = "讓 RAG 知識庫輔助模型，產生 ARAM Mayhem 配裝方向。",
+            Icon = "bi-stars",
+            Action = "查看英雄",
+            Controller = "LolAramGuides",
+            ActionName = "Index"
+        }
+    };
 }
 
-<style>
-    /* 橫幅容器 */
-    .hero-banner {
-        position: relative;
-        width: 100%;
-        height: 550px; /* 稍微加高一點 */
-        background: url('/images/守岸.jpg') no-repeat center center;
-        background-size: cover;
-        display: flex;
-        /* 改為 flex-end 並加 padding，讓搜尋欄往圖片下方移動 */
-        align-items: flex-end;
-        justify-content: center;
-        padding-bottom: 80px; /* 距離底部 80px */
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    }
+<section class="home-flow-shell">
+    <div class="home-flow-hero">
+        <div class="hero-copy">
+            <div class="eyebrow">ARAM Mayhem Lab</div>
+            <h1>彭彭遊戲基地</h1>
+            <p>把海克斯、英雄定位與裝備公式串起來，讓每場隨機單中大亂鬥都有更清楚的選擇路線。</p>
 
-    /* 遮罩，讓文字跟搜尋框更明顯 */
-    .hero-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.4);
-    }
-
-    /* 搜尋區域 */
-    .search-container {
-        position: relative;
-        z-index: 2;
-        width: 80%;
-        max-width: 700px;
-        text-align: center;
-        /* 背景加一點點模糊遮罩，增加文字辨識度 */
-        background: rgba(0, 0, 0, 0.2);
-        padding: 20px;
-        border-radius: 20px;
-        backdrop-filter: blur(3px);
-    }
-
-    .main-search-input {
-        height: 60px;
-        border-radius: 30px 0 0 30px !important;
-        font-size: 1.2rem;
-        padding-left: 25px;
-        border: none;
-    }
-
-    .btn-search {
-        border-radius: 0 30px 30px 0 !important;
-        width: 100px;
-        background-color: #007bff;
-        border: none;
-    }
-
-    /* 功能按鈕組 */
-    .feature-buttons {
-        margin-top: 20px;
-    }
-
-    .btn-media {
-        border-radius: 20px;
-        margin: 5px;
-        backdrop-filter: blur(5px);
-        background: rgba(255, 255, 255, 0.2);
-        color: white;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-
-        .btn-media:hover {
-            background: rgba(0, 123, 255, 0.8);
-            color: white;
-        }
-</style>
-
-<div class="container mt-4">
-    <div class="hero-banner">
-        <div class="hero-overlay"></div>
-        
-        <div class="search-container">
-            <h1 class="text-white mb-4" style="font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">探索你的裝備庫</h1>
-            
-            <form action="/Equipment/Search" method="get">
-                <div class="input-group mb-3">
-                    <input type="text" name="query" class="form-control main-search-input" placeholder="搜尋遊戲裝備名稱..." aria-label="Search">
-                    <button class="btn btn-primary btn-search" type="submit">
-                        <i class="bi bi-search"></i> 搜尋
-                    </button>
+            <div class="quick-ai-card">
+                <div class="quick-ai-icon">
+                    <i class="bi bi-stars"></i>
                 </div>
-            </form>
-
-            
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="uploadModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">匯入遊戲影音</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="file" class="form-control mb-3">
-                <input type="text" class="form-control" placeholder="或貼上 YouTube 網址">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary">確認匯入</button>
+                <div>
+                    <strong>不想先整理資料？</strong>
+                    <span>可以直接問 AI。系統會先用目前已有的 RAG 知識庫回答，之後資料越完整，推薦就越穩。</span>
+                    <div class="quick-ai-actions">
+                        <a asp-controller="AiRecommendation" asp-action="Index" class="btn btn-info text-dark fw-bold">
+                            <i class="bi bi-chat-dots me-1"></i>直接問 AI 推薦
+                        </a>
+                        <a asp-controller="LolAramGuides" asp-action="Index" class="btn btn-outline-info">
+                            <i class="bi bi-person-vcard me-1"></i>先看英雄
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-</div>
 
-<script>
-    function openVideoUpload() {
-        var myModal = new bootstrap.Modal(document.getElementById('uploadModal'));
-        myModal.show();
+        <div class="q-dashboard" aria-label="網站使用流程圖">
+            <div class="flow-center">
+                <div class="q-bot">
+                    <i class="bi bi-robot"></i>
+                    <span></span>
+                </div>
+                <strong>推薦流程</strong>
+            </div>
+
+            <div class="flow-map">
+                @for (var i = 0; i < flowSteps.Length; i++)
+                {
+                    var step = flowSteps[i];
+                    <article class="flow-card flow-card-@i">
+                        <div class="flow-orb">
+                            <i class="bi @step.Icon"></i>
+                        </div>
+                        <div>
+                            <div class="flow-number">@step.Number</div>
+                            <h2>@step.Title</h2>
+                            <p>@step.Text</p>
+                            <a asp-controller="@step.Controller" asp-action="@step.ActionName">
+                                @step.Action <i class="bi bi-arrow-right-short"></i>
+                            </a>
+                        </div>
+                    </article>
+                }
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Styles {
+<style>
+    .home-flow-shell {
+        min-height: calc(100vh - 120px);
+        color: #f7fbff;
     }
-</script>
+
+    .home-flow-hero {
+        min-height: 720px;
+        display: grid;
+        grid-template-columns: minmax(280px, 0.72fr) minmax(680px, 1.28fr);
+        gap: 34px;
+        align-items: center;
+        padding: clamp(24px, 4vw, 54px);
+        border: 1px solid rgba(21, 217, 255, 0.18);
+        background:
+            linear-gradient(90deg, rgba(7, 14, 18, 0.96) 0%, rgba(7, 14, 18, 0.9) 44%, rgba(7, 14, 18, 0.72) 100%),
+            url('/images/守岸.jpg') center / cover no-repeat;
+        overflow: hidden;
+    }
+
+    .hero-copy {
+        max-width: 520px;
+    }
+
+    .eyebrow {
+        width: fit-content;
+        padding: 5px 9px;
+        border: 1px solid rgba(21, 217, 255, 0.45);
+        border-radius: 6px;
+        color: #15d9ff;
+        background: rgba(21, 217, 255, 0.08);
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .hero-copy h1 {
+        margin: 14px 0 12px;
+        color: #f8fdff;
+        font-size: clamp(2.35rem, 5vw, 4.5rem);
+        font-weight: 900;
+        letter-spacing: 0;
+        text-shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
+    }
+
+    .hero-copy p {
+        max-width: 460px;
+        margin: 0;
+        color: #b6c7d3;
+        font-size: 1.03rem;
+        line-height: 1.8;
+    }
+
+    .quick-ai-card {
+        display: grid;
+        grid-template-columns: 56px 1fr;
+        gap: 14px;
+        max-width: 520px;
+        margin-top: 22px;
+        padding: 16px;
+        border: 1px solid rgba(21, 217, 255, 0.36);
+        background: rgba(3, 13, 19, 0.78);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
+    }
+
+    .quick-ai-icon {
+        width: 56px;
+        height: 56px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        color: #071016;
+        background: linear-gradient(145deg, #15d9ff, #ffdf6e);
+        border: 3px solid rgba(255, 255, 255, 0.86);
+    }
+
+    .quick-ai-icon i {
+        font-size: 1.45rem;
+    }
+
+    .quick-ai-card strong {
+        display: block;
+        color: #ffffff;
+        font-size: 1.02rem;
+        margin-bottom: 4px;
+    }
+
+    .quick-ai-card span {
+        display: block;
+        color: #aebcca;
+        font-size: 0.9rem;
+        line-height: 1.65;
+    }
+
+    .quick-ai-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .q-dashboard {
+        position: relative;
+        min-height: 600px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(3, 11, 16, 0.72);
+        box-shadow: inset 0 0 0 1px rgba(21, 217, 255, 0.08), 0 24px 70px rgba(0, 0, 0, 0.36);
+    }
+
+    .q-dashboard::before {
+        content: "";
+        position: absolute;
+        inset: 62px;
+        border: 2px dashed rgba(21, 217, 255, 0.2);
+        border-radius: 999px;
+    }
+
+    .q-dashboard::after {
+        content: "";
+        position: absolute;
+        inset: 118px;
+        border: 1px solid rgba(255, 206, 66, 0.22);
+        border-radius: 999px;
+    }
+
+    .flow-center {
+        position: absolute;
+        z-index: 4;
+        display: grid;
+        gap: 8px;
+        place-items: center;
+        color: #071016;
+        font-weight: 900;
+    }
+
+    .q-bot {
+        width: 104px;
+        height: 104px;
+        display: grid;
+        place-items: center;
+        border: 3px solid #111827;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #15d9ff, #ffdf6e);
+        box-shadow: 0 18px 38px rgba(21, 217, 255, 0.28);
+    }
+
+    .q-bot i {
+        font-size: 2.6rem;
+    }
+
+    .flow-map {
+        position: relative;
+        width: min(100%, 820px);
+        height: 560px;
+        z-index: 3;
+    }
+
+    .flow-card {
+        position: absolute;
+        width: 278px;
+        min-height: 150px;
+        display: grid;
+        grid-template-columns: 54px 1fr;
+        gap: 12px;
+        padding: 15px;
+        border: 1px solid rgba(21, 217, 255, 0.35);
+        background: linear-gradient(145deg, rgba(18, 30, 36, 0.98), rgba(6, 16, 22, 0.95));
+        box-shadow: 0 14px 36px rgba(0, 0, 0, 0.28);
+    }
+
+    .flow-card::after {
+        content: "";
+        position: absolute;
+        right: -1px;
+        bottom: -1px;
+        width: 24px;
+        height: 24px;
+        background: linear-gradient(135deg, transparent 49%, rgba(21, 217, 255, 0.72) 50%);
+    }
+
+    .flow-card-0 {
+        left: 42px;
+        top: 36px;
+    }
+
+    .flow-card-1 {
+        right: 42px;
+        top: 36px;
+    }
+
+    .flow-card-2 {
+        right: 2px;
+        top: 215px;
+    }
+
+    .flow-card-3 {
+        right: 178px;
+        bottom: 22px;
+    }
+
+    .flow-card-4 {
+        left: 8px;
+        top: 252px;
+    }
+
+    .flow-orb {
+        width: 54px;
+        height: 54px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        color: #071016;
+        background: #15d9ff;
+        border: 3px solid rgba(255, 255, 255, 0.88);
+        box-shadow: 0 8px 18px rgba(21, 217, 255, 0.25);
+    }
+
+    .flow-orb i {
+        font-size: 1.35rem;
+    }
+
+    .flow-number {
+        color: #ffdf6e;
+        font-size: 0.74rem;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+    }
+
+    .flow-card h2 {
+        margin: 2px 0 5px;
+        color: #ffffff;
+        font-size: 1.04rem;
+        font-weight: 900;
+    }
+
+    .flow-card p {
+        margin: 0 0 9px;
+        color: #aab8c4;
+        font-size: 0.86rem;
+        line-height: 1.45;
+    }
+
+    .flow-card a {
+        color: #15d9ff;
+        font-size: 0.84rem;
+        font-weight: 900;
+        text-decoration: none;
+    }
+
+    .flow-card a:hover {
+        color: #ffdf6e;
+    }
+
+    @@media (max-width: 1200px) {
+        .home-flow-hero {
+            grid-template-columns: 1fr;
+        }
+
+        .hero-copy {
+            max-width: 760px;
+        }
+    }
+
+    @@media (max-width: 760px) {
+        .home-flow-hero {
+            min-height: auto;
+            padding: 22px;
+        }
+
+        .q-dashboard {
+            min-height: auto;
+            padding: 18px;
+        }
+
+        .q-dashboard::before,
+        .q-dashboard::after,
+        .flow-center {
+            display: none;
+        }
+
+        .flow-map {
+            width: 100%;
+            height: auto;
+            display: grid;
+            gap: 12px;
+        }
+
+        .flow-card {
+            position: relative;
+            inset: auto;
+            width: 100%;
+        }
+    }
+</style>
+}
