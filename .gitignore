@@ -8,6 +8,7 @@ obj/
 build-check/
 .vs/
 Reports/
+.worktrees/
 
 # Common node modules locations
 /node_modules
