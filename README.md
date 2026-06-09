@@ -2,9 +2,12 @@
 
 ### 結合檢索增強生成、玩家回饋與裝備公式的《英雄聯盟》隨機單中大亂鬥 AI 推薦系統
 
+[![Portfolio Quality Gate](https://github.com/PengYuanCong/Game-Manager-DotNet/actions/workflows/ci.yml/badge.svg)](https://github.com/PengYuanCong/Game-Manager-DotNet/actions/workflows/ci.yml)
+
 [線上展示](https://proposal-aram-assistant.onrender.com/) ·
 [部署與資安設計](DEPLOYMENT_SECURITY.md) ·
-[Supabase 遷移說明](database/supabase/README.md)
+[Supabase 遷移說明](database/supabase/README.md) ·
+[三分鐘面試展示](docs/INTERVIEW_DEMO.md)
 
 這是一個以 ASP.NET Core MVC 開發的全端 Side Project。系統把英雄定位、海克斯效果、套裝關係、裝備屬性與玩家採納紀錄整理成知識庫，再透過檢索增強生成（Retrieval-Augmented Generation, RAG）為 OpenRouter 模型提供當前對局資料。
 
@@ -164,10 +167,23 @@ APP_ADMIN_USERS=admin_account_list
 
 ```powershell
 dotnet build Proposal.slnx
+dotnet test Proposal.slnx
+powershell -ExecutionPolicy Bypass -File Tools\ValidateAiEvaluationDataset.ps1
+powershell -ExecutionPolicy Bypass -File Tools\CheckNuGetVulnerabilities.ps1
 powershell -ExecutionPolicy Bypass -File Tools\CloudReadinessCheck.ps1
 powershell -ExecutionPolicy Bypass -File Tools\RunLocalSmoke.ps1 -Port 5226
 powershell -ExecutionPolicy Bypass -File Tools\SupabaseContractCheck.ps1
 ```
+
+### 自動化品質證據
+
+- xUnit 驗證推薦快取鍵、PBKDF2 密碼雜湊、海克斯標籤正規化及 MVC 權限慣例。
+- MVC 安全慣例測試會檢查所有 `HttpPost` action 的 antiforgery，以及管理員 CRUD 的角色限制。
+- 30 組離線 AI 評測案例涵蓋 AP、AD、坦克、輔助、混合傷害、四個海克斯階段及禁用內容。
+- GitHub Actions 會執行 Release build、測試、AI 資料集、Supabase schema、架構邊界、secret scan 與 NuGet 弱點掃描。
+- Local smoke 與 cloud preview smoke 會檢查健康端點、安全標頭及頁面是否洩漏例外資訊。
+
+AI 評測資料集是可版本控制的品質契約，用來確認案例結構、繁體中文名稱與推薦底線。它不呼叫付費 API，也不把離線規則驗證宣稱為即時模型準確率。
 
 目前驗證紀錄：
 

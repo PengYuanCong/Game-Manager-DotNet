@@ -70,7 +70,7 @@ function Get-PostgresConnectionMetadata {
                 PasswordPresent = $userInfo.Count -gt 1 -and
                     -not [string]::IsNullOrWhiteSpace([Uri]::UnescapeDataString($userInfo[1]))
                 PasswordIsPlaceholder = $userInfo.Count -gt 1 -and
-                    [Uri]::UnescapeDataString($userInfo[1]) -match "YOUR-PASSWORD|你的.*密碼"
+                    [Uri]::UnescapeDataString($userInfo[1]) -match "YOUR-PASSWORD|\u4F60\u7684.*\u5BC6\u78BC"
             }
         } catch {
             throw "PostgreSQL connection URI format is invalid."
@@ -115,7 +115,7 @@ function Get-PostgresConnectionMetadata {
         Port = $port
         Username = $username
         PasswordPresent = -not [string]::IsNullOrWhiteSpace($credentialSecret)
-        PasswordIsPlaceholder = $credentialSecret -match "YOUR-PASSWORD|你的.*密碼"
+        PasswordIsPlaceholder = $credentialSecret -match "YOUR-PASSWORD|\u4F60\u7684.*\u5BC6\u78BC"
     }
 }
 
@@ -136,7 +136,7 @@ function Assert-PostgresConnectionPreflight {
         exit 2
     }
 
-    if ($metadata.Host -match "YOUR|你的|example|<|>|\[|\]") {
+    if ($metadata.Host -match "YOUR|\u4F60\u7684|example|<|>|\[|\]") {
         Write-Status "FAIL" "PostgreSQL host is still a placeholder: $($metadata.Host)"
         Write-Host "Use the exact Host shown by Supabase Connect > Session pooler."
         Write-Host "RESULT=No data was written."

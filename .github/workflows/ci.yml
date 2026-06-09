@@ -1,0 +1,61 @@
+name: Portfolio Quality Gate
+
+on:
+  push:
+    branches:
+      - main
+      - codex/**
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portfolio-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Build, test, security
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore Proposal.slnx
+
+      - name: Build
+        run: dotnet build Proposal.slnx --configuration Release --no-restore --maxcpucount:1
+
+      - name: Test
+        run: dotnet test Proposal.slnx --configuration Release --no-build --maxcpucount:1 --logger "trx;LogFileName=portfolio-tests.trx"
+
+      - name: Validate AI evaluation dataset
+        shell: powershell
+        run: ./Tools/ValidateAiEvaluationDataset.ps1
+
+      - name: Validate Supabase schema contract
+        shell: powershell
+        run: ./Tools/SupabaseContractCheck.ps1
+
+      - name: Validate architecture boundaries
+        shell: powershell
+        run: ./Tools/ArchitectureDependencyCheck.ps1
+
+      - name: Run cloud readiness checks
+        shell: powershell
+        run: ./Tools/CloudReadinessCheck.ps1 -SkipNetworkChecks
+
+      - name: Scan NuGet dependencies
+        shell: powershell
+        run: ./Tools/CheckNuGetVulnerabilities.ps1
