@@ -81,8 +81,8 @@
 - Modify only if verification exposes a defect.
 
 - [ ] Run `dotnet restore Proposal.slnx`.
-- [ ] Run `dotnet build Proposal.slnx -c Release --no-restore`.
-- [ ] Run `dotnet test Proposal.slnx -c Release --no-build`.
+- [ ] Run `dotnet build Proposal.slnx -c Release --no-restore --maxcpucount:1` to avoid the .NET 10 `.slnx` parallel project-reference race.
+- [ ] Run `dotnet test Proposal.slnx -c Release --no-build --maxcpucount:1`.
 - [ ] Run `Tools/ValidateAiEvaluationDataset.ps1`.
 - [ ] Run `Tools/SupabaseContractCheck.ps1`.
 - [ ] Run `Tools/ArchitectureDependencyCheck.ps1`.
@@ -103,4 +103,3 @@
 - [ ] Push `main`.
 - [ ] Verify `git ls-remote origin refs/heads/main` matches local `HEAD`.
 - [ ] Re-open the GitHub README or raw README and verify the new quality section is present.
-
