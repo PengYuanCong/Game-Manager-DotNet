@@ -167,19 +167,19 @@
     }
 }
 
-<div class="equipment-page container-fluid px-4">
+<div class="equipment-page game-page">
     <div id="equipmentAntiForgeryToken" class="d-none">
         @Html.AntiForgeryToken()
     </div>
 
-    <header class="equipment-header">
+    <header class="equipment-header game-page-header">
         <div>
             <div class="eyebrow">League of Legends</div>
-            <h2><i class="bi bi-shield-sword me-2"></i>裝備管理庫</h2>
-            <p>依價格由低至高排序，支援英雄聯盟裝備圖片、完整素質與六件套裝儲存。</p>
+            <h1 class="game-page-title">裝備資料庫</h1>
+            <p class="game-page-description">依價格由低至高瀏覽完整素質、裝備效果與六件套裝組合。</p>
         </div>
 
-        <form asp-action="Index" method="get" class="equipment-search-panel">
+        <form asp-action="Index" method="get" class="equipment-search-panel game-toolbar">
             <div class="filter-grid">
                 <input type="text" name="searchString" value="@currentSearch" class="form-control text-bg-dark border-secondary" placeholder="搜尋裝備名稱" aria-label="搜尋裝備名稱">
                 <select name="statFilter" class="form-select text-bg-dark border-secondary" aria-label="屬性篩選">
@@ -275,7 +275,7 @@
                 var stats = BuildStatPills(item);
                 var imageUrl = BuildItemImageUrl(item);
 
-                <article class="equipment-card">
+                <article class="equipment-card game-card">
                     <div class="card-topline"></div>
                     <label class="card-select" title="選入組合">
                         <input type="checkbox" class="form-check-input eq-checkbox"
@@ -287,7 +287,7 @@
                         <div class="item-icon">
                             @if (!string.IsNullOrWhiteSpace(imageUrl))
                             {
-                                <img src="@imageUrl" alt="@item.Name" loading="lazy" referrerpolicy="no-referrer" onerror="this.classList.add('d-none'); this.nextElementSibling.classList.remove('d-none');">
+                                <img src="@imageUrl" alt="@item.Name" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.classList.add('d-none'); this.nextElementSibling.classList.remove('d-none');">
                                 <i class="bi bi-gem d-none"></i>
                             }
                             else

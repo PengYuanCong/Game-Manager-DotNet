@@ -382,15 +382,15 @@
 
 }
 
-<div class="container-fluid px-4 augment-page">
-    <div class="augment-hero mb-4">
+<div class="augment-page game-page">
+    <div class="augment-hero game-page-header">
         <div class="augment-title-panel">
             <div class="section-kicker">ARAM Mayhem Arsenal</div>
-            <h2 class="m-0">海克斯 RAG 知識庫</h2>
-            <p>依稀有度、套裝與屬性快速檢索，給 AI 推薦與玩家選擇海克斯時使用。</p>
+            <h1 class="game-page-title">海克斯資料庫</h1>
+            <p class="game-page-description">依評級、稀有度、套裝與屬性快速檢索本輪候選。</p>
         </div>
 
-        <div class="augment-control-panel">
+        <div class="augment-control-panel game-toolbar">
             <form asp-action="Index" method="get" class="augment-search" id="augmentSearchForm">
                 <div class="augment-search-grid">
                     @if (isPickMode)
@@ -558,7 +558,7 @@
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
 
-                    <article class="augment-card @RarityClass(augment.Rarity) @(isPickMode ? "pick-card" : "")"
+                    <article class="augment-card game-card @RarityClass(augment.Rarity) @(isPickMode ? "pick-card" : "")"
                              data-pick-card="@(isPickMode ? "augment" : null)"
                              data-augment-name="@augment.Name"
                              data-augment-rarity="@DisplayRarity(augment.Rarity)"
@@ -581,6 +581,7 @@
                                         src="@imageUrls[0]"
                                         alt="@augment.Name"
                                         loading="lazy"
+                                        decoding="async"
                                         referrerpolicy="no-referrer"
                                         data-image-index="0"
                                         data-image-candidates="@imageCandidates"
@@ -902,7 +903,7 @@
         align-self: start;
         justify-self: start;
         height: auto;
-        max-height: max-content;
+        max-height: 44px;
         width: fit-content;
         max-width: 100%;
         min-width: 0;
@@ -914,7 +915,9 @@
     }
 
     .augment-tag-drawer.open {
-        width: min(100%, 1040px);
+        width: min(100%, 680px);
+        max-height: min(420px, calc(100vh - 120px));
+        overflow: auto;
     }
 
     .tag-drawer-toggle {

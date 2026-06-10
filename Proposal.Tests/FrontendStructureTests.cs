@@ -66,6 +66,20 @@ public sealed class FrontendStructureTests
         Assert.Contains("decision-preview", page, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("LolAramGuides", "英雄資料庫")]
+    [InlineData("LolAramAugments", "海克斯資料庫")]
+    [InlineData("Equipment", "裝備資料庫")]
+    public void LibraryPages_UseSharedHeaderAndToolbar(string viewFolder, string expectedTitle)
+    {
+        var page = Read("Proposal", "Views", viewFolder, "Index.cshtml");
+
+        Assert.Contains("game-page-header", page, StringComparison.Ordinal);
+        Assert.Contains("game-toolbar", page, StringComparison.Ordinal);
+        Assert.Contains("game-card", page, StringComparison.Ordinal);
+        Assert.Contains(expectedTitle, page, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.Combine([RepositoryRoot, .. segments]));
 

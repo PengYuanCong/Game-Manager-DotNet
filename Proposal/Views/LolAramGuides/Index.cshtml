@@ -77,15 +77,15 @@
     }
 }
 
-<div class="container-fluid px-4 guide-page">
-    <div class="guide-hero mb-4">
+<div class="guide-page game-page">
+    <div class="guide-hero game-page-header">
         <div>
             <div class="section-kicker">ARAM Mayhem</div>
-            <h2 class="m-0">英雄 RAG 知識庫</h2>
-            <div class="text-secondary mt-1">管理英雄定位、推薦海克斯與裝備方向，供 AI 推薦使用。</div>
+            <h1 class="game-page-title">英雄資料庫</h1>
+            <p class="game-page-description">依英雄定位、人工判斷與推薦摘要，快速找到本場海克斯與裝備方向。</p>
         </div>
 
-        <form asp-action="Index" method="get" class="guide-search" id="guideSearchForm">
+        <form asp-action="Index" method="get" class="guide-search game-toolbar" id="guideSearchForm">
             <div class="guide-search-grid">
                 @if (isPickMode)
                 {
@@ -172,7 +172,7 @@
                     var augmentBadges = ParseAugmentBadges(guide.Augments, augmentCatalog);
                     var coreItems = SplitValues(guide.CoreItems).Take(4).ToList();
 
-                    <article class="guide-card @(isPickMode ? "pick-card" : "")"
+                    <article class="guide-card game-card @(isPickMode ? "pick-card" : "")"
                              data-pick-card="@(isPickMode ? "champion" : null)"
                              data-champion-name="@(!string.IsNullOrWhiteSpace(guide.LocalizedName) ? guide.LocalizedName : guide.ChampionName)"
                              data-champion-key="@guide.ChampionKey"
@@ -193,6 +193,7 @@
                                         src="@championImageUrls[0]"
                                         alt="@guide.LocalizedName"
                                         loading="lazy"
+                                        decoding="async"
                                         referrerpolicy="no-referrer"
                                         data-image-index="0"
                                         data-image-candidates="@championImageCandidates"

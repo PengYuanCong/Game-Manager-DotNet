@@ -484,7 +484,7 @@ git commit -m "feat: clarify AI recommendation workflow"
 - Modify: `Proposal/wwwroot/css/site.css`
 - Modify: `Proposal/wwwroot/js/site.js`
 
-- [ ] **Step 1: Add failing library structure tests**
+- [x] **Step 1: Add failing library structure tests**
 
 Add:
 
@@ -504,7 +504,7 @@ public void LibraryPages_UseSharedHeaderAndToolbar(string viewFolder, string exp
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run:
 
@@ -514,7 +514,7 @@ dotnet test Proposal.Tests\Proposal.Tests.csproj --filter LibraryPages_UseShared
 
 Expected: FAIL until the three pages share the new structure.
 
-- [ ] **Step 3: Normalize each page header and toolbar**
+- [x] **Step 3: Normalize each page header and toolbar**
 
 For each page, retain its current form action, query string names, admin checks and inputs, but use:
 
@@ -533,7 +533,7 @@ For each page, retain its current form action, query string names, admin checks 
 
 Use the corresponding title and description for augments and equipment. Search remains first; CRUD/import buttons remain behind existing admin conditions.
 
-- [ ] **Step 4: Apply common card interaction classes**
+- [x] **Step 4: Apply common card interaction classes**
 
 Add `game-card` to the outermost champion, augment and equipment result cards without renaming existing page-specific classes. Keep current image URLs and add:
 
@@ -545,7 +545,7 @@ data-fallback-src="/favicon.ico"
 
 Only list images use lazy loading; first-viewport hero/background media must remain eager.
 
-- [ ] **Step 5: Constrain the augment property drawer**
+- [x] **Step 5: Constrain the augment property drawer**
 
 Keep the existing property filters and toggle behavior, but constrain both collapsed and expanded states:
 
@@ -556,7 +556,7 @@ Keep the existing property filters and toggle behavior, but constrain both colla
   overflow: auto;
 }
 
-.augment-tag-drawer:not(.is-open) {
+.augment-tag-drawer:not(.open) {
   width: auto;
   max-width: 100%;
   max-height: 48px;
@@ -570,7 +570,7 @@ The exact selector must match the existing `#augmentTagDrawer` JavaScript contra
 
 Do not change the existing local/session storage implementation. Add shared selected-state styling based on the current checkbox/selection classes and verify the persisted selected count still updates after a filtered navigation.
 
-- [ ] **Step 7: Run tests and build**
+- [x] **Step 7: Run tests and build**
 
 Run:
 
@@ -582,7 +582,7 @@ dotnet build Proposal\Proposal.csproj -c Release
 
 Expected: PASS without changing authorization or endpoint behavior.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```powershell
 git add Proposal.Tests\FrontendStructureTests.cs Proposal\Views\LolAramGuides\Index.cshtml Proposal\Views\LolAramAugments\Index.cshtml Proposal\Views\Equipment\Index.cshtml Proposal\wwwroot\css\site.css Proposal\wwwroot\js\site.js

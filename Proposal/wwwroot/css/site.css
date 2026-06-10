@@ -725,6 +725,33 @@ a:focus-visible {
   flex: 0 0 auto;
 }
 
+#augmentTagDrawer.augment-tag-drawer {
+  width: min(680px, calc(100vw - 32px));
+  max-width: 100%;
+  max-height: min(420px, calc(100vh - 120px));
+  overflow: auto;
+}
+
+#augmentTagDrawer.augment-tag-drawer:not(.open) {
+  width: fit-content;
+  max-height: 48px;
+  overflow: hidden;
+}
+
+.guide-page .guide-card,
+.augment-page .augment-card,
+.equipment-page .equipment-card {
+  transform: none;
+}
+
+.guide-page .guide-card:hover,
+.augment-page .augment-card:hover,
+.equipment-page .equipment-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(200, 155, 60, 0.55);
+  box-shadow: var(--shadow-raised);
+}
+
 @media (max-width: 1199.98px) {
   .home-command {
     grid-template-columns: 1fr;
