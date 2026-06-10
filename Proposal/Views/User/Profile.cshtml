@@ -55,9 +55,17 @@
     }
 }
 
-<div class="profile-page container-fluid px-4">
+<div class="profile-page game-page">
+    <header class="game-page-header">
+        <div>
+            <span class="game-kicker">PLAYER PROFILE</span>
+            <h1 class="game-page-title">個人資料</h1>
+            <p class="game-page-description">管理玩家頭像，回看近期 AI 推薦、收藏、裝備組合與公式紀錄。</p>
+        </div>
+    </header>
+
     <div class="profile-grid">
-        <aside class="profile-card">
+        <aside class="profile-card game-card">
             <img src="/avatars/@AvatarFileName(Model.Username)?v=@DateTime.Now.Ticks"
                  onerror="this.src='https://github.com/mdo.png'"
                  class="profile-avatar"
@@ -83,7 +91,7 @@
         </aside>
 
         <main class="profile-main">
-            <section class="profile-panel">
+            <section class="profile-panel game-card">
                 <div class="panel-heading">
                     <div>
                         <div class="eyebrow">Recent Activity</div>
@@ -97,7 +105,7 @@
                     <div class="activity-list">
                         @foreach (var item in Model.RecentActivities)
                         {
-                            <article class="activity-item @CategoryClass(item.Category)">
+                            <article class="activity-item game-card @CategoryClass(item.Category)">
                                 <div class="activity-icon">
                                     <i class="bi @CategoryIcon(item.Category)"></i>
                                 </div>
@@ -126,7 +134,7 @@
                 }
             </section>
 
-            <section class="profile-panel">
+            <section class="profile-panel game-card">
                 <div class="panel-heading">
                     <div>
                         <div class="eyebrow">AI Memory</div>
@@ -140,7 +148,7 @@
                     <div class="favorite-grid">
                         @foreach (var item in Model.RecommendationFavorites)
                         {
-                            <article class="favorite-card">
+                            <article class="favorite-card game-card">
                                 <div class="favorite-card-head">
                                     <div>
                                         <strong>@item.Title</strong>
@@ -187,7 +195,7 @@
                 }
             </section>
 
-            <section class="profile-panel">
+            <section class="profile-panel game-card">
                 <div class="panel-heading">
                     <div>
                         <div class="eyebrow">Formula</div>
@@ -201,7 +209,7 @@
                     <div class="calc-list">
                         @foreach (var item in Model.RecentCalculations)
                         {
-                            <article class="calc-item">
+                            <article class="calc-item game-card">
                                 <div>
                                     <strong>@item.FormulaType</strong>
                                     <p>@item.InputDetails</p>

@@ -80,6 +80,27 @@ public sealed class FrontendStructureTests
         Assert.Contains(expectedTitle, page, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SecondaryAndAccountPages_UseTheGameDesignSystem()
+    {
+        var calculator = Read("Proposal", "Views", "Calculator", "Index.cshtml");
+        var highlights = Read("Proposal", "Views", "Media", "Highlights.cshtml");
+        var profile = Read("Proposal", "Views", "User", "Profile.cshtml");
+        var login = Read("Proposal", "Views", "Account", "Login.cshtml");
+        var register = Read("Proposal", "Views", "Account", "Register.cshtml");
+        var notFound = Read("Proposal", "Views", "Home", "NotFoundPage.cshtml");
+
+        Assert.Contains("game-page-header", calculator, StringComparison.Ordinal);
+        Assert.Contains("game-page-header", highlights, StringComparison.Ordinal);
+        Assert.Contains("game-page-header", profile, StringComparison.Ordinal);
+        Assert.Contains("~/css/site.css", login, StringComparison.Ordinal);
+        Assert.Contains("/images/poro-guide.png", login, StringComparison.Ordinal);
+        Assert.Contains("~/css/site.css", register, StringComparison.Ordinal);
+        Assert.Contains("/images/poro-guide.png", register, StringComparison.Ordinal);
+        Assert.Contains("error-page", notFound, StringComparison.Ordinal);
+        Assert.DoesNotContain("infinite", notFound, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.Combine([RepositoryRoot, .. segments]));
 

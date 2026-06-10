@@ -1,59 +1,28 @@
-﻿@{
-    Layout = "_Layout"; // 確保導覽列還在，讓使用者能點回去
-    ViewData["Title"] = "數據失聯中...";
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "找不到頁面";
 }
 
-<div class="container text-center" style="padding-top: 80px; padding-bottom: 80px;">
-    <div class="position-relative d-inline-block mb-4">
-        <img src="/images/404cat.jpg" alt="404 Cat" 
-             class="img-fluid rounded-circle shadow-lg border border-4 border-info" 
-             style="width: 300px; height: 300px; object-fit: cover; filter: brightness(0.9);">
-        
-        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger shadow">
-            ERROR 404
-        </span>
-    </div>
+<section class="error-page" aria-labelledby="error-title">
+    <div class="error-page__copy">
+        <span class="game-kicker">ERROR 404</span>
+        <h1 id="error-title">這條路線沒有資料</h1>
+        <p>頁面可能已經移動、網址輸入錯誤，或這筆資料尚未建立。可以回到基地重新選擇功能。</p>
 
-    <h1 class="display-4 text-info fw-bold mb-3" style="text-shadow: 0 0 10px rgba(13,202,240,0.5);">喔喔！訊號中斷</h1>
-    
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <p class="lead text-white-50 mb-2">
-                連貓貓都驚訝了！看來這筆數據已經掉入虛數空間，或是被某個強大的聲骸給吸收掉了。
-            </p>
-            <p class="text-secondary mb-5 italic">
-                別擔心，這只是短暫的數據擾動。深呼吸，讓我們重新回到安全的座標位置吧！
-            </p>
+        <div class="error-page__actions">
+            <a asp-controller="Home" asp-action="Index" class="btn btn-primary-game btn-lg">
+                <i class="bi bi-house-door-fill" aria-hidden="true"></i>
+                返回首頁
+            </a>
+            <button type="button" onclick="history.back()" class="btn btn-outline-game btn-lg">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                回上一頁
+            </button>
         </div>
     </div>
 
-    <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
-        <a href="/" class="btn btn-info btn-lg px-5 rounded-pill fw-bold shadow">
-            <i class="bi bi-house-door-fill me-2"></i>返回基地首頁
-        </a>
-        <button onclick="history.back()" class="btn btn-outline-secondary btn-lg px-5 rounded-pill">
-            <i class="bi bi-arrow-left me-2"></i>回到上一頁
-        </button>
+    <div class="error-page__media" aria-hidden="true">
+        <span>404</span>
+        <img src="/images/404cat.jpg" alt="">
     </div>
-</div>
-
-@section Styles {
-<style>
-    /* 讓貓貓有一種輕微跳動的感覺 */
-    img {
-        animation: float 3s ease-in-out infinite;
-    }
-
-    @@keyframes float {
-        0% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
-        100% { transform: translateY(0px); }
-    }
-
-    body {
-        /* 增加一點點星空背景感 */
-        background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
-        min-height: 100vh;
-    }
-</style>
-}
+</section>

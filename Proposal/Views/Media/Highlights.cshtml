@@ -4,12 +4,12 @@
     ViewData["Title"] = "精彩操作";
 }
 
-<section class="highlight-theater">
-    <div class="highlight-hero">
+<section class="highlight-theater highlights-page game-page">
+    <div class="highlight-hero game-page-header">
         <div>
-            <div class="highlight-kicker">HIGHLIGHT THEATER</div>
-            <h1>精彩操作劇院</h1>
-            <p>搜尋 League of Legends 影片、預覽教學與操作精華，也可以拖曳本地影片快速播放。</p>
+            <div class="highlight-kicker game-kicker">HIGHLIGHT THEATER</div>
+            <h1 class="game-page-title">精彩操作劇院</h1>
+            <p class="game-page-description">搜尋 League of Legends 影片、預覽教學與操作精華，也可以拖曳本地影片快速播放。</p>
         </div>
         <div class="highlight-badges" aria-label="功能摘要">
             <span><i class="bi bi-youtube"></i>YouTube 搜尋</span>
@@ -19,7 +19,7 @@
     </div>
 
     <div class="theater-grid">
-        <aside class="video-sidebar">
+        <aside class="video-sidebar game-card">
             <div class="sidebar-head">
                 <div>
                     <div class="highlight-kicker">Search Queue</div>
@@ -47,7 +47,7 @@
             </div>
         </aside>
 
-        <main class="player-stage">
+        <main class="player-stage game-card">
             <div class="stage-topline">
                 <span><i class="bi bi-broadcast-pin"></i> Preview Console</span>
                 <span>16:9</span>
@@ -97,7 +97,7 @@
         justify-content: space-between;
         gap: 24px;
         align-items: end;
-        min-height: 220px;
+        min-height: 168px;
         padding: clamp(26px, 5vw, 48px);
         margin-bottom: 22px;
         border-color: rgba(216, 182, 92, 0.28);
@@ -117,7 +117,7 @@
     .highlight-hero h1 {
         margin: 8px 0 12px;
         color: #fff4c7;
-        font-size: clamp(2.6rem, 6vw, 5.6rem);
+        font-size: clamp(2rem, 4vw, 3.8rem);
         font-weight: 950;
         line-height: 0.95;
     }

@@ -2,16 +2,16 @@
     ViewData["Title"] = "公式計算";
 }
 
-<section class="formula-workshop">
+<section class="formula-workshop calculator-page game-page">
     <div id="calculatorAntiForgeryToken" class="d-none">
         @Html.AntiForgeryToken()
     </div>
 
-    <div class="formula-hero">
+    <div class="formula-hero game-page-header">
         <div>
-            <div class="formula-kicker">RIFT NUMBERS LAB</div>
-            <h1>公式計算工坊</h1>
-            <p>快速估算裝備金錢效率、減傷、有效生命值與穿透後傷害倍率，讓配裝不只靠感覺。</p>
+            <div class="formula-kicker game-kicker">RIFT NUMBERS LAB</div>
+            <h1 class="game-page-title">公式計算工坊</h1>
+            <p class="game-page-description">快速估算裝備金錢效率、減傷、有效生命值與穿透後傷害倍率，讓配裝不只靠感覺。</p>
         </div>
         <div class="formula-runes" aria-hidden="true">
             <span><i class="bi bi-currency-dollar"></i>效率</span>
@@ -22,7 +22,7 @@
     </div>
 
     <div class="formula-layout">
-        <aside class="formula-console">
+        <aside class="formula-console game-card">
             <div class="console-section">
                 <label class="form-label" for="formulaType">計算公式</label>
                 <select id="formulaType" class="form-select rift-select" onchange="changeInputs()">
@@ -92,7 +92,7 @@
         </aside>
 
         <main class="formula-main">
-            <section class="formula-input-card">
+            <section class="formula-input-card game-card">
                 <div class="panel-heading">
                     <span>01</span>
                     <div>
@@ -113,7 +113,7 @@
             </section>
 
             <section class="formula-result-grid d-none" id="displayArea">
-                <article id="resultArea" class="result-card">
+                <article id="resultArea" class="result-card game-card">
                     <div class="panel-heading compact">
                         <span>02</span>
                         <h2>計算結果</h2>
@@ -121,7 +121,7 @@
                     <div id="resultValue" class="result-value">--</div>
                 </article>
 
-                <article class="chart-card">
+                <article class="chart-card game-card">
                     <div class="panel-heading compact">
                         <span>03</span>
                         <h2>屬性分佈雷達圖</h2>
@@ -158,7 +158,7 @@
         justify-content: space-between;
         gap: 24px;
         align-items: end;
-        min-height: 230px;
+        min-height: 168px;
         padding: clamp(26px, 5vw, 48px);
         margin-bottom: 22px;
         border-color: rgba(216, 182, 92, 0.28);
@@ -178,7 +178,7 @@
     .formula-hero h1 {
         margin: 8px 0 12px;
         color: #fff4c7;
-        font-size: clamp(2.6rem, 6vw, 5.6rem);
+        font-size: clamp(2rem, 4vw, 3.8rem);
         font-weight: 950;
         line-height: 0.95;
     }

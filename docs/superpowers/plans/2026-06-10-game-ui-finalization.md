@@ -600,11 +600,11 @@ git commit -m "feat: unify ARAM data libraries"
 - Modify: `Proposal/Views/Home/NotFoundPage.cshtml`
 - Modify: `Proposal/wwwroot/css/site.css`
 
-- [ ] **Step 1: Add shared page wrappers without changing form contracts**
+- [x] **Step 1: Add shared page wrappers without changing form contracts**
 
 Apply `game-page`, `game-page-header`, `game-page-title`, `game-page-description`, `game-toolbar`, `game-card` and `game-empty-state` to calculator, highlights and profile. Preserve all input names, select ids, fetch URLs and controller actions.
 
-- [ ] **Step 2: Fix calculator select readability using native color rules**
+- [x] **Step 2: Fix calculator select readability using native color rules**
 
 Use:
 
@@ -628,19 +628,19 @@ Use:
 
 Keep result tables tabular and right-align numeric columns.
 
-- [ ] **Step 3: Reframe highlights and profile**
+- [x] **Step 3: Reframe highlights and profile**
 
 Highlights use a compact filter header and thumbnail-led list; profile uses account summary, recent recommendations, saved loadouts and recent activity. Empty states use a single useful CTA instead of decorative copy.
 
-- [ ] **Step 4: Align standalone Login and Register pages**
+- [x] **Step 4: Align standalone Login and Register pages**
 
 Because these pages use `Layout = null`, link the same `site.css`, add `auth-page`, `auth-panel`, `auth-aside`, and `auth-form` classes, keep antiforgery and validation markup unchanged, and use one centered Poro helper image rather than a large gradient illustration.
 
-- [ ] **Step 5: Align the 404 page**
+- [x] **Step 5: Align the 404 page**
 
 Use a compact error code, current cat image as optional secondary media, and clear `返回首頁` / `回上一頁` actions. Remove comments visible only to source readers.
 
-- [ ] **Step 6: Run full tests and Release build**
+- [x] **Step 6: Run full tests and Release build**
 
 Run:
 
@@ -651,7 +651,7 @@ dotnet build Proposal\Proposal.csproj -c Release
 
 Expected: all tests pass and Release build succeeds.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```powershell
 git add Proposal\Views\Calculator\Index.cshtml Proposal\Views\Media\Highlights.cshtml Proposal\Views\User\Profile.cshtml Proposal\Views\Account\Login.cshtml Proposal\Views\Account\Register.cshtml Proposal\Views\Home\NotFoundPage.cshtml Proposal\wwwroot\css\site.css

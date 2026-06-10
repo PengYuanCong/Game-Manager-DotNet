@@ -752,6 +752,110 @@ a:focus-visible {
   box-shadow: var(--shadow-raised);
 }
 
+.calculator-page .form-select {
+  color: var(--color-text);
+  background-color: var(--color-ink-800);
+  border-color: var(--color-line);
+}
+
+.calculator-page .form-select option {
+  color: #10171b;
+  background: #edf3f2;
+}
+
+.calculator-page .form-select option:checked {
+  color: #071013;
+  background: #d5b35c;
+}
+
+.profile-page .profile-grid {
+  margin-top: 0;
+}
+
+.auth-page {
+  background:
+    radial-gradient(circle at 15% 12%, rgba(41, 184, 176, 0.08), transparent 26rem),
+    linear-gradient(145deg, #05090c, #09161d 58%, #05090c);
+}
+
+.auth-page::before {
+  display: none;
+}
+
+.auth-page .auth-panel,
+.auth-page .auth-aside {
+  border-radius: var(--radius-card);
+}
+
+.error-page {
+  min-height: calc(100vh - 136px);
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(300px, 0.55fr);
+  gap: clamp(32px, 6vw, 92px);
+  align-items: center;
+  padding: clamp(24px, 6vw, 84px);
+  border: 1px solid var(--color-line);
+  background:
+    linear-gradient(110deg, rgba(8, 17, 23, 0.98), rgba(8, 17, 23, 0.78)),
+    url("/images/守岸.jpg") center / cover no-repeat;
+}
+
+.error-page__copy h1 {
+  max-width: 720px;
+  margin: 0;
+  color: #fff4cf;
+  font-size: clamp(2.5rem, 6vw, 5.4rem);
+  font-weight: 850;
+  line-height: 1.02;
+}
+
+.error-page__copy p {
+  max-width: 600px;
+  margin: 22px 0 0;
+  color: var(--color-muted);
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+.error-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.error-page__actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.error-page__media {
+  position: relative;
+  justify-self: center;
+  width: min(100%, 360px);
+  aspect-ratio: 1;
+}
+
+.error-page__media span {
+  position: absolute;
+  top: -24px;
+  right: -12px;
+  z-index: 2;
+  color: var(--color-gold-bright);
+  font-size: clamp(3rem, 8vw, 7rem);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.error-page__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 1px solid var(--color-line-strong);
+  filter: saturate(0.7) contrast(1.05);
+}
+
 @media (max-width: 1199.98px) {
   .home-command {
     grid-template-columns: 1fr;
@@ -862,6 +966,14 @@ a:focus-visible {
 
   .game-toolbar {
     justify-content: flex-start;
+  }
+
+  .error-page {
+    grid-template-columns: 1fr;
+  }
+
+  .error-page__media {
+    width: min(100%, 280px);
   }
 }
 
