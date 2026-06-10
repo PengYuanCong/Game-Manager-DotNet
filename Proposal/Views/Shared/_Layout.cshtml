@@ -23,189 +23,15 @@
     <title>@ViewData["Title"] - 彭彭遊戲基地</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-
-    <style>
-        body {
-            min-height: 100vh;
-            margin: 0;
-            background:
-                linear-gradient(rgba(37, 215, 232, 0.022) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(37, 215, 232, 0.018) 1px, transparent 1px),
-                linear-gradient(135deg, rgba(37, 215, 232, 0.08), transparent 28%),
-                linear-gradient(315deg, rgba(212, 175, 55, 0.055), transparent 22%),
-                #070b0f;
-            background-size: 36px 36px, 36px 36px, auto, auto, auto;
-            color: #f8f9fa;
-            font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
-        }
-
-        .app-navbar {
-            position: sticky;
-            top: 0;
-            z-index: 1030;
-            border-bottom: 1px solid rgba(37, 215, 232, 0.18);
-            background:
-                linear-gradient(90deg, rgba(5, 13, 20, 0.98), rgba(6, 18, 28, 0.95) 54%, rgba(9, 25, 35, 0.98)),
-                rgba(7, 11, 15, 0.94);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.22);
-        }
-
-        .app-navbar::after {
-            content: "";
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: -1px;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(37, 215, 232, 0.72), rgba(212, 175, 55, 0.54), transparent);
-            pointer-events: none;
-        }
-
-        .navbar-brand {
-            display: inline-flex;
-            align-items: center;
-            min-height: 42px;
-            padding: 0.3rem 0.65rem 0.3rem 0.45rem;
-            border: 1px solid rgba(37, 215, 232, 0.16);
-            border-radius: 5px;
-            color: #fff;
-            background: rgba(37, 215, 232, 0.04);
-            font-weight: 800;
-            white-space: nowrap;
-            letter-spacing: 0;
-        }
-
-        .navbar-brand:hover {
-            color: #25d7e8;
-        }
-
-        .navbar-brand i {
-            filter: drop-shadow(0 0 10px rgba(37, 215, 232, 0.42));
-        }
-
-        .app-navbar .nav-link {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            color: #adb5bd;
-            border: 1px solid transparent;
-            border-radius: 4px;
-            padding: 0.45rem 0.7rem;
-            font-size: 0.95rem;
-            font-weight: 700;
-            transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
-        }
-
-        .app-navbar .nav-link i {
-            color: #8fb7c7;
-        }
-
-        .app-navbar .nav-link:hover,
-        .app-navbar .nav-link.active {
-            color: #fff;
-            background: linear-gradient(180deg, rgba(37, 215, 232, 0.14), rgba(37, 215, 232, 0.05));
-            border-color: rgba(37, 215, 232, 0.28);
-            box-shadow: inset 0 -1px 0 rgba(255, 213, 92, 0.24);
-            transform: translateY(-1px);
-        }
-
-        .app-navbar .nav-link.active::after {
-            content: "";
-            position: absolute;
-            left: 0.7rem;
-            right: 0.7rem;
-            bottom: 0.2rem;
-            height: 2px;
-            background: linear-gradient(90deg, #25d7e8, #d4af37);
-            border-radius: 999px;
-        }
-
-        .app-navbar .nav-link:hover i,
-        .app-navbar .nav-link.active i {
-            color: #25d7e8;
-        }
-
-        .main-content {
-            width: 100%;
-            padding: 28px;
-        }
-
-        .btn {
-            border-radius: 5px;
-            font-weight: 700;
-        }
-
-        .form-control,
-        .form-select,
-        .input-group-text {
-            border-radius: 5px;
-        }
-
-        .form-select option {
-            color: #f5fbff;
-            background-color: #061923;
-        }
-
-        .form-select option:checked,
-        .form-select option:hover {
-            color: #031017;
-            background-color: #8fc7ff;
-        }
-
-        .card,
-        .modal-content {
-            border-color: rgba(37, 215, 232, 0.22) !important;
-            background: rgba(4, 12, 19, 0.82) !important;
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 18px 40px rgba(0, 0, 0, 0.22);
-        }
-
-        .user-chip {
-            max-width: 220px;
-            min-width: 0;
-        }
-
-        .user-chip strong {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .main-content > .guide-page,
-        .main-content > .augment-page,
-        .main-content > .equipment-page,
-        .main-content > .aram-ai-page,
-        .main-content > .home-flow-shell,
-        .main-content > .profile-page {
-            animation: pageReveal 90ms ease both;
-        }
-
-        @@keyframes pageReveal {
-            from {
-                opacity: 0.96;
-                transform: translateY(2px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @@media (max-width: 575px) {
-            .main-content {
-                padding: 18px 12px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
+    <a class="skip-link" href="#main-content">跳到主要內容</a>
     <nav class="navbar navbar-expand-xl app-navbar">
-        <div class="container-fluid px-4">
+        <div class="container-fluid app-navbar__inner">
             <a asp-controller="Home" asp-action="Index" class="navbar-brand d-flex align-items-center gap-2">
-                <i class="bi bi-controller fs-3 text-info"></i>
+                <i class="bi bi-controller fs-3" aria-hidden="true"></i>
                 <span>彭彭遊戲基地</span>
             </a>
 
@@ -213,41 +39,44 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
 
-            <div class="collapse navbar-collapse gap-3" id="mainNav">
-                <ul class="navbar-nav me-auto mb-2 mb-xl-0 gap-xl-1">
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav nav-primary">
                     <li class="nav-item">
                         <a asp-controller="AiRecommendation" asp-action="Index" class="nav-link @ActiveNav("AiRecommendation")">
-                            <i class="bi bi-stars"></i>AI 推薦
+                            <i class="bi bi-stars" aria-hidden="true"></i>AI 推薦
                         </a>
                     </li>
                     <li class="nav-item">
                         <a asp-controller="LolAramGuides" asp-action="Index" class="nav-link @ActiveNav("LolAramGuides")">
-                            <i class="bi bi-person-vcard"></i>英雄
+                            <i class="bi bi-person-vcard" aria-hidden="true"></i>英雄
                         </a>
                     </li>
                     <li class="nav-item">
                         <a asp-controller="LolAramAugments" asp-action="Index" class="nav-link @ActiveNav("LolAramAugments")">
-                            <i class="bi bi-gem"></i>海克斯知識庫
+                            <i class="bi bi-gem" aria-hidden="true"></i>海克斯
                         </a>
                     </li>
                     <li class="nav-item">
                         <a asp-controller="Equipment" asp-action="Index" class="nav-link @ActiveNav("Equipment")">
-                            <i class="bi bi-shield-sword"></i>裝備管理
+                            <i class="bi bi-shield-sword" aria-hidden="true"></i>裝備
                         </a>
                     </li>
+                </ul>
+
+                <ul class="navbar-nav nav-utility">
                     <li class="nav-item">
                         <a asp-controller="Calculator" asp-action="Index" class="nav-link @ActiveNav("Calculator", "Colculator")">
-                            <i class="bi bi-calculator"></i>公式計算
+                            <i class="bi bi-calculator" aria-hidden="true"></i>公式
                         </a>
                     </li>
                     <li class="nav-item">
                         <a asp-controller="Media" asp-action="Highlights" class="nav-link @ActiveNav("Media")">
-                            <i class="bi bi-play-btn"></i>精彩操作
+                            <i class="bi bi-play-btn" aria-hidden="true"></i>精彩操作
                         </a>
                     </li>
                     <li class="nav-item">
                         <a asp-controller="User" asp-action="Profile" class="nav-link @ActiveNav("User")">
-                            <i class="bi bi-person-circle"></i>個人資料
+                            <i class="bi bi-person-circle" aria-hidden="true"></i>個人資料
                         </a>
                     </li>
                 </ul>
@@ -261,7 +90,8 @@
                         </div>
                         <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-outline-danger" title="登出">
-                                <i class="bi bi-box-arrow-right"></i>
+                                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                                <span class="visually-hidden">登出</span>
                             </button>
                         </form>
                     }
@@ -276,11 +106,12 @@
         </div>
     </nav>
 
-    <main class="main-content">
+    <main id="main-content" class="main-content" tabindex="-1">
         @RenderBody()
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

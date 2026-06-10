@@ -38,7 +38,7 @@
 - Modify: `Proposal/wwwroot/css/site.css`
 - Modify: `Proposal/wwwroot/js/site.js`
 
-- [ ] **Step 1: Write the failing shell tests**
+- [x] **Step 1: Write the failing shell tests**
 
 建立 `FrontendStructureTests.cs`，用專案根目錄定位 Razor/CSS 原始檔，先鎖定共用 stylesheet、skip link、主要/工具導覽群組、ready class 與禁止新增前端框架：
 
@@ -106,7 +106,7 @@ public sealed class FrontendStructureTests
 }
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run:
 
@@ -116,7 +116,7 @@ dotnet test Proposal.Tests\Proposal.Tests.csproj --filter FrontendStructureTests
 
 Expected: FAIL because the current Layout contains inline `<style>`, lacks the semantic nav groups, and `site.css` lacks the new primitives.
 
-- [ ] **Step 3: Replace the inline Layout styling with the shared shell**
+- [x] **Step 3: Replace the inline Layout styling with the shared shell**
 
 In both Layout files:
 
@@ -149,7 +149,7 @@ In both Layout files:
 <script src="~/js/site.js" asp-append-version="true"></script>
 ```
 
-- [ ] **Step 4: Add the design tokens and shared primitives**
+- [x] **Step 4: Add the design tokens and shared primitives**
 
 Replace the default template CSS with:
 
@@ -246,7 +246,7 @@ body {
 
 Extend this same file with the navbar, buttons, forms, focus ring, rarity tokens, `.game-empty-state`, `.game-section-label`, `.game-kicker`, `.game-page-title`, `.game-page-description`, mobile 44px controls, and no-horizontal-overflow rules described in the approved spec.
 
-- [ ] **Step 5: Add deterministic page-ready and image fallback behavior**
+- [x] **Step 5: Add deterministic page-ready and image fallback behavior**
 
 Use the existing `site.js` for progressive enhancement only:
 
@@ -269,7 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 CSS must keep the body visible without JavaScript and apply only a short `opacity`/`translateY` reveal to `.js body:not(.page-ready) .main-content`.
 
-- [ ] **Step 6: Run shell tests and the full suite**
+- [x] **Step 6: Run shell tests and the full suite**
 
 Run:
 
@@ -280,7 +280,7 @@ dotnet test Proposal.Tests\Proposal.Tests.csproj
 
 Expected: all frontend structure tests pass and the existing suite remains green.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```powershell
 git add Proposal.Tests\FrontendStructureTests.cs Proposal\Views\_Layout.cshtml Proposal\Views\Shared\_Layout.cshtml Proposal\wwwroot\css\site.css Proposal\wwwroot\js\site.js
