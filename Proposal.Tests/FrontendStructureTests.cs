@@ -40,6 +40,19 @@ public sealed class FrontendStructureTests
         Assert.DoesNotContain("gsap", layout, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void Home_PrioritizesRecommendationFlow()
+    {
+        var home = Read("Proposal", "Views", "Home", "Index.cshtml");
+
+        Assert.Contains("home-command", home, StringComparison.Ordinal);
+        Assert.Contains("開始 AI 推薦", home, StringComparison.Ordinal);
+        Assert.Contains("選擇英雄", home, StringComparison.Ordinal);
+        Assert.Contains("比較三個海克斯", home, StringComparison.Ordinal);
+        Assert.Contains("取得推薦", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("flow-card-4", home, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.Combine([RepositoryRoot, .. segments]));
 

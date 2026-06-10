@@ -294,7 +294,7 @@ git commit -m "feat: establish game UI shell"
 - Modify: `Proposal/Views/Home/Index.cshtml`
 - Modify: `Proposal/wwwroot/css/site.css`
 
-- [ ] **Step 1: Add the failing homepage contract test**
+- [x] **Step 1: Add the failing homepage contract test**
 
 Add:
 
@@ -313,7 +313,7 @@ public void Home_PrioritizesRecommendationFlow()
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run:
 
@@ -323,7 +323,7 @@ dotnet test Proposal.Tests\Proposal.Tests.csproj --filter Home_PrioritizesRecomm
 
 Expected: FAIL because the current homepage still renders five absolutely positioned flow cards.
 
-- [ ] **Step 3: Replace the homepage markup**
+- [x] **Step 3: Replace the homepage markup**
 
 Render:
 
@@ -359,11 +359,11 @@ Render:
 
 Below the hero add one asymmetric data gateway: a large hero library link and two compact augment/equipment links. Do not restore the five-card process map.
 
-- [ ] **Step 4: Add homepage-specific styling**
+- [x] **Step 4: Add homepage-specific styling**
 
 Add `.home-command`, `.home-command__copy`, `.home-mission`, `.home-mission__steps`, `.poro-guide`, and `.home-library-grid` to `site.css`. Use the existing `/images/守岸.jpg` as a low-contrast background layer, keep the hero under 760px tall, and switch to one column below 992px.
 
-- [ ] **Step 5: Run the focused test and build**
+- [x] **Step 5: Run the focused test and build**
 
 Run:
 
@@ -374,7 +374,7 @@ dotnet build Proposal\Proposal.csproj -c Release
 
 Expected: PASS and Release build succeeds.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add Proposal.Tests\FrontendStructureTests.cs Proposal\Views\Home\Index.cshtml Proposal\wwwroot\css\site.css

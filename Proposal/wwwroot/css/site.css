@@ -386,6 +386,368 @@ a:focus-visible {
   white-space: nowrap;
 }
 
+.home-page {
+  gap: clamp(34px, 5vw, 72px);
+}
+
+.home-command {
+  position: relative;
+  isolation: isolate;
+  min-height: min(720px, calc(100vh - 100px));
+  display: grid;
+  grid-template-columns: minmax(320px, 0.86fr) minmax(500px, 1.14fr);
+  gap: clamp(28px, 4vw, 64px);
+  align-items: center;
+  overflow: hidden;
+  padding: clamp(28px, 5vw, 76px);
+  border: 1px solid var(--color-line);
+  background:
+    linear-gradient(90deg, rgba(5, 11, 15, 0.98) 0%, rgba(5, 11, 15, 0.92) 45%, rgba(5, 11, 15, 0.62) 100%),
+    url("/images/守岸.jpg") center / cover no-repeat;
+}
+
+.home-command::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: 0;
+  bottom: 0;
+  width: 38%;
+  height: 2px;
+  background: var(--color-gold);
+}
+
+.home-command__copy {
+  max-width: 650px;
+}
+
+.home-command__copy h1 {
+  max-width: 720px;
+  margin: 0;
+  color: #fff8e5;
+  font-size: clamp(2.7rem, 5.8vw, 5.8rem);
+  font-weight: 850;
+  line-height: 1.02;
+}
+
+.home-command__copy > p {
+  max-width: 620px;
+  margin: 22px 0 0;
+  color: #bac5c8;
+  font-size: clamp(1rem, 1.3vw, 1.15rem);
+  line-height: 1.9;
+}
+
+.home-command__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.home-command__actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding-inline: 22px;
+}
+
+.home-command__facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 36px 0 0;
+  border-top: 1px solid var(--color-line);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.home-command__facts > div {
+  padding: 16px 14px;
+}
+
+.home-command__facts > div + div {
+  border-left: 1px solid var(--color-line);
+}
+
+.home-command__facts dt {
+  color: var(--color-gold-bright);
+  font-size: 0.82rem;
+}
+
+.home-command__facts dd {
+  margin: 5px 0 0;
+  color: #aeb9bd;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.home-mission {
+  align-self: stretch;
+  display: grid;
+  align-content: center;
+  gap: 18px;
+  padding: clamp(20px, 3vw, 34px);
+  border: 1px solid rgba(200, 155, 60, 0.38);
+  background: rgba(7, 16, 21, 0.92);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+}
+
+.home-mission__heading {
+  display: flex;
+  gap: 18px;
+  align-items: end;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.home-mission__heading h2 {
+  margin: 0;
+  font-size: clamp(1.4rem, 2vw, 2rem);
+}
+
+.home-mission__status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-teal-bright);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.home-mission__steps {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-mission__steps li {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 32px;
+  gap: 14px;
+  align-items: center;
+  min-height: 94px;
+  padding: 16px;
+  border: 1px solid var(--color-line);
+  background: rgba(16, 32, 41, 0.68);
+}
+
+.home-mission__number {
+  align-self: start;
+  color: var(--color-gold-bright);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.home-mission__steps strong,
+.home-mission__steps small {
+  display: block;
+}
+
+.home-mission__steps strong {
+  margin-bottom: 5px;
+  color: var(--color-text);
+}
+
+.home-mission__steps small {
+  color: var(--color-muted);
+  line-height: 1.55;
+}
+
+.home-mission__steps > li > i {
+  color: var(--color-teal);
+  font-size: 1.3rem;
+}
+
+.poro-guide {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  margin-top: 4px;
+  padding: 12px 16px 12px 6px;
+  border-top: 1px solid var(--color-line);
+}
+
+.poro-guide img {
+  width: 116px;
+  height: 116px;
+  object-fit: contain;
+}
+
+.poro-guide strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #fff4cf;
+}
+
+.poro-guide p {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+
+.home-library {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.65fr) minmax(0, 1.35fr);
+  gap: clamp(24px, 4vw, 56px);
+  align-items: start;
+}
+
+.home-library__intro h2 {
+  max-width: 520px;
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 3rem);
+}
+
+.home-library__intro p {
+  max-width: 500px;
+  margin: 14px 0 0;
+  color: var(--color-muted);
+  line-height: 1.8;
+}
+
+.home-library-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.home-library-card {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 24px;
+  gap: 16px;
+  align-items: start;
+  min-height: 150px;
+  padding: 20px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.home-library-card--primary {
+  grid-row: span 2;
+  min-height: 312px;
+  align-content: center;
+  border-color: var(--color-line-strong);
+  background:
+    linear-gradient(155deg, rgba(200, 155, 60, 0.13), transparent 52%),
+    var(--color-ink-850);
+}
+
+.home-library-card__icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid rgba(200, 155, 60, 0.48);
+  color: var(--color-gold-bright);
+  background: rgba(200, 155, 60, 0.08);
+}
+
+.home-library-card span,
+.home-library-card strong,
+.home-library-card p {
+  display: block;
+}
+
+.home-library-card span {
+  margin-bottom: 8px;
+  color: var(--color-teal-bright);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.home-library-card strong {
+  font-size: 1.08rem;
+  line-height: 1.45;
+}
+
+.home-library-card p {
+  margin: 12px 0 0;
+  color: var(--color-muted);
+  line-height: 1.7;
+}
+
+.home-library-card > .bi-arrow-up-right {
+  color: #71838b;
+}
+
+.home-library-card:hover {
+  color: var(--color-text);
+}
+
+@media (max-width: 1199.98px) {
+  .home-command {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .home-mission {
+    min-height: 520px;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .home-library {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .home-command {
+    padding: 24px 18px;
+    background:
+      linear-gradient(180deg, rgba(5, 11, 15, 0.94), rgba(5, 11, 15, 0.99)),
+      url("/images/守岸.jpg") center / cover no-repeat;
+  }
+
+  .home-command__facts,
+  .home-library-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-command__facts > div + div {
+    border-top: 1px solid var(--color-line);
+    border-left: 0;
+  }
+
+  .home-mission {
+    min-height: auto;
+    padding: 18px 14px;
+  }
+
+  .home-mission__heading {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .home-mission__steps li {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .home-mission__steps > li > i {
+    display: none;
+  }
+
+  .poro-guide {
+    grid-template-columns: 82px minmax(0, 1fr);
+    padding-inline: 0;
+  }
+
+  .poro-guide img {
+    width: 82px;
+    height: 82px;
+  }
+
+  .home-library-card--primary {
+    grid-row: auto;
+    min-height: 190px;
+  }
+}
+
 @media (max-width: 1199.98px) {
   .app-navbar .navbar-collapse {
     align-items: stretch;
