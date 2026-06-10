@@ -388,7 +388,7 @@ git commit -m "feat: redesign ARAM command home"
 - Modify: `Proposal/Views/AiRecommendation/Index.cshtml`
 - Modify: `Proposal/wwwroot/css/site.css`
 
-- [ ] **Step 1: Add the failing AI page structure test**
+- [x] **Step 1: Add the failing AI page structure test**
 
 Add:
 
@@ -407,7 +407,7 @@ public void AiRecommendation_PresentsFourInputStagesAndDecisionPanel()
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run:
 
@@ -417,7 +417,7 @@ dotnet test Proposal.Tests\Proposal.Tests.csproj --filter AiRecommendation_Prese
 
 Expected: FAIL because the existing page does not use the approved staged structure.
 
-- [ ] **Step 3: Group existing controls without changing their names or bindings**
+- [x] **Step 3: Group existing controls without changing their names or bindings**
 
 Wrap the existing champion picker, stage select, augment round inputs, optional notes and submit button in:
 
@@ -433,7 +433,7 @@ Wrap the existing champion picker, stage select, augment round inputs, optional 
 
 Repeat with stages 2-4 using the approved labels. Preserve every existing `asp-for`, hidden field, antiforgery form, `data-save-draft`, element id and JavaScript query target.
 
-- [ ] **Step 4: Fill the right-side empty state and normalize result hierarchy**
+- [x] **Step 4: Fill the right-side empty state and normalize result hierarchy**
 
 When `Model.Recommendation` is null, render:
 
@@ -451,11 +451,11 @@ When `Model.Recommendation` is null, render:
 
 When a recommendation exists, order its existing content as `推薦選擇`、`選擇原因`、`裝備方向`、`注意事項`; do not alter service data or POST actions.
 
-- [ ] **Step 5: Add responsive recommendation layout**
+- [x] **Step 5: Add responsive recommendation layout**
 
 Use a `minmax(340px, 0.78fr) minmax(0, 1.22fr)` desktop grid, one column below 992px, stable minimum result height on desktop, and no fixed height on mobile.
 
-- [ ] **Step 6: Run the focused test, full tests and build**
+- [x] **Step 6: Run the focused test, full tests and build**
 
 Run:
 
@@ -467,7 +467,7 @@ dotnet build Proposal\Proposal.csproj -c Release
 
 Expected: all commands succeed.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```powershell
 git add Proposal.Tests\FrontendStructureTests.cs Proposal\Views\AiRecommendation\Index.cshtml Proposal\wwwroot\css\site.css

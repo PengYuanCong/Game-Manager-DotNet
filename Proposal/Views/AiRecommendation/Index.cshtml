@@ -52,8 +52,8 @@
     }
 }
 
-<div class="container-fluid px-4 aram-ai-page">
-    <header class="ai-hero">
+<div class="aram-ai-page game-page">
+    <header class="ai-hero game-page-header">
         <div class="hero-copy">
             <div class="section-kicker">ARAM Mayhem Console</div>
             <h2><i class="bi bi-stars me-2"></i>ARAM 大亂鬥 AI 推薦</h2>
@@ -80,130 +80,175 @@
                     <strong>隨機單中大亂鬥</strong>
                 </div>
 
-                <div class="field-block hero-picker-block">
-                    <div class="field-title">
-                        <span>英雄 <em>必填</em></span>
-                        <a class="picker-link" asp-controller="LolAramGuides" asp-action="Index" asp-route-pick="champion" data-save-draft>
-                            <i class="bi bi-person-bounding-box me-1"></i>挑英雄
-                        </a>
-                    </div>
-                    <input asp-for="Input.CoreChampion" id="championInput" class="form-control text-bg-dark border-secondary" placeholder="例如：瑟菈紛、布蘭德" autocomplete="off" />
-                    <span asp-validation-for="Input.CoreChampion" class="text-danger small"></span>
-                </div>
-
-                <label class="field-block">
-                    <span>對局階段</span>
-                    <select asp-for="Input.CurrentStage" id="stageSelect" class="form-select text-bg-dark border-secondary">
-                        <option value="">依目前情況選擇</option>
-                        <option value="開局三選一">開局三選一</option>
-                        <option value="7 等三選一">7 等三選一</option>
-                        <option value="11 等三選一">11 等三選一</option>
-                        <option value="15 等三選一">15 等三選一</option>
-                        <option value="後期成形">後期成形</option>
-                    </select>
-                </label>
-
-                <div class="owned-augment-board" aria-label="已選海克斯">
-                    <div class="board-title">
-                        <span>已選海克斯</span>
-                        <small>7 / 11 / 15 等會先看前面已選，再判斷本輪三選一。</small>
-                    </div>
-                    <div class="owned-augment-grid">
-                        @foreach (var owned in new[]
-                        {
-                            new { Key = "opening", Label = "開局已選" },
-                            new { Key = "level7", Label = "7 等已選" },
-                            new { Key = "level11", Label = "11 等已選" },
-                            new { Key = "level15", Label = "15 等已選" }
-                        })
-                        {
-                            <div class="owned-augment-row" data-owned-stage="@owned.Key">
-                                <span>@owned.Label</span>
-                                <input type="text"
-                                       class="form-control text-bg-dark border-secondary owned-augment-input"
-                                       data-owned-stage="@owned.Key"
-                                       placeholder="已經拿到的海克斯"
-                                       autocomplete="off" />
-                                <a class="mini-picker"
-                                   asp-controller="LolAramAugments"
-                                   asp-action="Index"
-                                   asp-route-pick="augment"
-                                   asp-route-stage="@($"selected_{owned.Key}")"
-                                   asp-route-slot="0"
-                                   data-save-draft
-                                   title="到海克斯知識庫挑選已選海克斯">
-                                    <i class="bi bi-plus-lg"></i>
-                                </a>
+                <section class="recommendation-stage" data-stage-number="01">
+                    <div class="recommendation-stage__number">01</div>
+                    <div class="recommendation-stage__body">
+                        <div class="recommendation-stage__heading">
+                            <div>
+                                <span class="game-section-label">玩家角色</span>
+                                <h2>鎖定英雄</h2>
                             </div>
-                        }
-                    </div>
-                </div>
-
-                <div class="augment-stage-board" aria-label="海克斯三選一輸入">
-                    <div class="board-title">
-                        <span>本階段三選一</span>
-                        <small>同一輪三個選項通常同色；有黃金重抽時才視為升階。</small>
-                    </div>
-                    <div class="stage-picker-empty" id="stagePickerEmpty">
-                        <i class="bi bi-caret-up-square me-1"></i>
-                        先選擇目前階段，這裡才會展開該階段的三選一面板。
-                    </div>
-
-                    @foreach (var stage in new[]
-                    {
-                        new { Key = "opening", Label = "開局", Hint = "遊戲開始" },
-                        new { Key = "level7", Label = "7 等", Hint = "第二次選擇" },
-                        new { Key = "level11", Label = "11 等", Hint = "第三次選擇" },
-                        new { Key = "level15", Label = "15 等", Hint = "最後一次選擇" }
-                    })
-                    {
-                        <section class="augment-stage" data-stage="@stage.Key">
-                            <div class="stage-heading">
-                                <strong>@stage.Label</strong>
-                                <span>@stage.Hint</span>
+                            <a class="picker-link" asp-controller="LolAramGuides" asp-action="Index" asp-route-pick="champion" data-save-draft>
+                                <i class="bi bi-person-bounding-box me-1"></i>挑英雄
+                            </a>
+                        </div>
+                        <div class="field-block hero-picker-block">
+                            <div class="field-title">
+                                <span>英雄 <em>必填</em></span>
                             </div>
-                            <p class="stage-rule-note">
-                                直接填入畫面上看到的三個選項；若黃金重抽只讓其中一個升階，點該選項旁的升階。
-                            </p>
-                            <div class="augment-choice-grid">
-                                @for (var slot = 0; slot < 3; slot++)
+                            <input asp-for="Input.CoreChampion" id="championInput" class="form-control text-bg-dark border-secondary" placeholder="例如：瑟菈紛、布蘭德" autocomplete="off" />
+                            <span asp-validation-for="Input.CoreChampion" class="text-danger small"></span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="recommendation-stage" data-stage-number="02">
+                    <div class="recommendation-stage__number">02</div>
+                    <div class="recommendation-stage__body">
+                        <div class="recommendation-stage__heading">
+                            <div>
+                                <span class="game-section-label">決策時點</span>
+                                <h2>選擇對局階段</h2>
+                            </div>
+                        </div>
+                        <label class="field-block">
+                            <span>對局階段</span>
+                            <select asp-for="Input.CurrentStage" id="stageSelect" class="form-select text-bg-dark border-secondary">
+                                <option value="">依目前情況選擇</option>
+                                <option value="開局三選一">開局三選一</option>
+                                <option value="7 等三選一">7 等三選一</option>
+                                <option value="11 等三選一">11 等三選一</option>
+                                <option value="15 等三選一">15 等三選一</option>
+                                <option value="後期成形">後期成形</option>
+                            </select>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="recommendation-stage" data-stage-number="03">
+                    <div class="recommendation-stage__number">03</div>
+                    <div class="recommendation-stage__body">
+                        <div class="recommendation-stage__heading">
+                            <div>
+                                <span class="game-section-label">本輪候選</span>
+                                <h2>帶入本輪三個海克斯</h2>
+                            </div>
+                        </div>
+
+                        <div class="owned-augment-board" aria-label="已選海克斯">
+                            <div class="board-title">
+                                <span>已選海克斯</span>
+                                <small>7 / 11 / 15 等會先看前面已選，再判斷本輪三選一。</small>
+                            </div>
+                            <div class="owned-augment-grid">
+                                @foreach (var owned in new[]
                                 {
-                                    <div class="augment-choice">
+                                    new { Key = "opening", Label = "開局已選" },
+                                    new { Key = "level7", Label = "7 等已選" },
+                                    new { Key = "level11", Label = "11 等已選" },
+                                    new { Key = "level15", Label = "15 等已選" }
+                                })
+                                {
+                                    <div class="owned-augment-row" data-owned-stage="@owned.Key">
+                                        <span>@owned.Label</span>
                                         <input type="text"
-                                               class="form-control text-bg-dark border-secondary augment-choice-input"
-                                               data-stage="@stage.Key"
-                                               data-slot="@slot"
-                                               placeholder="選項 @(slot + 1)"
+                                               class="form-control text-bg-dark border-secondary owned-augment-input"
+                                               data-owned-stage="@owned.Key"
+                                               placeholder="已經拿到的海克斯"
                                                autocomplete="off" />
-                                        <button type="button"
-                                                class="upgrade-toggle"
-                                                data-stage="@stage.Key"
-                                                data-slot="@slot"
-                                                aria-pressed="false"
-                                                title="黃金重抽時，只標記被升階的這個選項">
-                                            升階
-                                        </button>
                                         <a class="mini-picker"
                                            asp-controller="LolAramAugments"
                                            asp-action="Index"
                                            asp-route-pick="augment"
-                                           asp-route-stage="@stage.Key"
-                                           asp-route-slot="@slot"
+                                           asp-route-stage="@($"selected_{owned.Key}")"
+                                           asp-route-slot="0"
                                            data-save-draft
-                                           title="到海克斯知識庫挑選">
+                                           title="到海克斯知識庫挑選已選海克斯">
                                             <i class="bi bi-plus-lg"></i>
                                         </a>
                                     </div>
                                 }
                             </div>
-                        </section>
-                    }
-                </div>
+                        </div>
 
-                <label class="field-block">
-                    <span>對局狀況 / 備註 <em>選填</em></span>
-                    <textarea asp-for="Input.Notes" id="notesInput" class="form-control text-bg-dark border-secondary" rows="4" placeholder="例如：敵方刺客多、我方缺前排、想偏輔助或偏輸出"></textarea>
-                </label>
+                        <div class="augment-stage-board" aria-label="海克斯三選一輸入">
+                            <div class="board-title">
+                                <span>本階段三選一</span>
+                                <small>同一輪三個選項通常同色；有黃金重抽時才視為升階。</small>
+                            </div>
+                            <div class="stage-picker-empty" id="stagePickerEmpty">
+                                <i class="bi bi-caret-up-square me-1"></i>
+                                先選擇目前階段，這裡才會展開該階段的三選一面板。
+                            </div>
+
+                            @foreach (var stage in new[]
+                            {
+                                new { Key = "opening", Label = "開局", Hint = "遊戲開始" },
+                                new { Key = "level7", Label = "7 等", Hint = "第二次選擇" },
+                                new { Key = "level11", Label = "11 等", Hint = "第三次選擇" },
+                                new { Key = "level15", Label = "15 等", Hint = "最後一次選擇" }
+                            })
+                            {
+                                <section class="augment-stage" data-stage="@stage.Key">
+                                    <div class="stage-heading">
+                                        <strong>@stage.Label</strong>
+                                        <span>@stage.Hint</span>
+                                    </div>
+                                    <p class="stage-rule-note">
+                                        直接填入畫面上看到的三個選項；若黃金重抽只讓其中一個升階，點該選項旁的升階。
+                                    </p>
+                                    <div class="augment-choice-grid">
+                                        @for (var slot = 0; slot < 3; slot++)
+                                        {
+                                            <div class="augment-choice">
+                                                <input type="text"
+                                                       class="form-control text-bg-dark border-secondary augment-choice-input"
+                                                       data-stage="@stage.Key"
+                                                       data-slot="@slot"
+                                                       placeholder="選項 @(slot + 1)"
+                                                       autocomplete="off" />
+                                                <button type="button"
+                                                        class="upgrade-toggle"
+                                                        data-stage="@stage.Key"
+                                                        data-slot="@slot"
+                                                        aria-pressed="false"
+                                                        title="黃金重抽時，只標記被升階的這個選項">
+                                                    升階
+                                                </button>
+                                                <a class="mini-picker"
+                                                   asp-controller="LolAramAugments"
+                                                   asp-action="Index"
+                                                   asp-route-pick="augment"
+                                                   asp-route-stage="@stage.Key"
+                                                   asp-route-slot="@slot"
+                                                   data-save-draft
+                                                   title="到海克斯知識庫挑選">
+                                                    <i class="bi bi-plus-lg"></i>
+                                                </a>
+                                            </div>
+                                        }
+                                    </div>
+                                </section>
+                            }
+                        </div>
+                    </div>
+                </section>
+
+                <section class="recommendation-stage" data-stage-number="04">
+                    <div class="recommendation-stage__number">04</div>
+                    <div class="recommendation-stage__body">
+                        <div class="recommendation-stage__heading">
+                            <div>
+                                <span class="game-section-label">選填資訊</span>
+                                <h2>補充對局狀況</h2>
+                            </div>
+                        </div>
+                        <label class="field-block">
+                            <span>對局狀況 / 備註 <em>選填</em></span>
+                            <textarea asp-for="Input.Notes" id="notesInput" class="form-control text-bg-dark border-secondary" rows="4" placeholder="例如：敵方刺客多、我方缺前排、想偏輔助或偏輸出"></textarea>
+                        </label>
+                    </div>
+                </section>
 
                 <button type="submit" class="btn btn-info text-dark fw-bold w-100 ai-submit" id="recommendButton">
                     <i class="bi bi-lightning-charge-fill me-1"></i>產生推薦
@@ -240,30 +285,30 @@
 
             @if (Model.Recommendation == null)
             {
-                <section class="ai-empty ai-empty-grid">
+                <section class="ai-empty ai-empty-grid decision-preview game-empty-state" aria-labelledby="decision-preview-title">
                     <div class="empty-command">
-                        <span class="empty-orb"><i class="bi bi-cpu"></i></span>
+                        <img class="decision-preview__poro" src="/images/poro-guide.png" alt="" width="116" height="116">
                         <div>
-                            <div class="section-kicker">Recommendation Console</div>
-                            <h5>等待英雄鎖定</h5>
-                            <p>不用先想裝備。選英雄與海克斯三選一後，AI 會直接給你裝備、海克斯與打法路線。</p>
+                            <div class="section-kicker">推薦預覽</div>
+                            <h5 id="decision-preview-title">先鎖定英雄，再比較這輪三個選項</h5>
+                            <p>不用先想裝備。系統會把英雄定位、先前選擇與本輪候選一起交給 RAG 判斷。</p>
                         </div>
                     </div>
                     <div class="empty-hint-grid">
                         <div>
                             <strong>01</strong>
-                            <span>挑英雄</span>
-                            <p>點左側按鈕到英雄頁選取，會自動帶回來。</p>
+                            <span>英雄定位與技能觸發方式</span>
+                            <p>先判斷輸出、保排、治療、護盾與技能頻率。</p>
                         </div>
                         <div>
                             <strong>02</strong>
-                            <span>帶回三選一</span>
-                            <p>每階段三個海克斯都能從知識庫點選。</p>
+                            <span>已選海克斯的套裝與屬性關聯</span>
+                            <p>後續階段會參考前面拿到的海克斯，不會單輪孤立判斷。</p>
                         </div>
                         <div>
                             <strong>03</strong>
-                            <span>拿裝備答案</span>
-                            <p>裝備由 AI 根據英雄與海克斯推薦，不需要手動輸入。</p>
+                            <span>裝備方向、風險與替代方案</span>
+                            <p>結果會說明推薦原因，也會標示情境裝備與注意事項。</p>
                         </div>
                     </div>
                 </section>
@@ -433,15 +478,14 @@
         justify-content: space-between;
         gap: 20px;
         align-items: flex-end;
-        min-height: 196px;
-        padding: 24px;
-        margin-bottom: 18px;
-        border: 1px solid rgba(37, 215, 232, 0.24);
+        min-height: 176px;
+        padding: clamp(22px, 3vw, 34px);
+        margin-bottom: 0;
+        border: 1px solid rgba(200, 155, 60, 0.28);
         background:
-            radial-gradient(circle at 78% 24%, rgba(151, 222, 146, 0.16), transparent 30%),
-            linear-gradient(110deg, rgba(5, 15, 24, 0.97) 0%, rgba(7, 18, 28, 0.92) 56%, rgba(10, 26, 36, 0.78) 100%),
-            url('/images/摰硫.jpg') center / cover no-repeat;
-        box-shadow: inset 0 0 0 1px rgba(255, 211, 101, 0.05), 0 22px 54px rgba(0, 0, 0, 0.28);
+            linear-gradient(100deg, rgba(5, 12, 16, 0.98) 0%, rgba(5, 12, 16, 0.9) 58%, rgba(5, 12, 16, 0.66) 100%),
+            url('/images/守岸.jpg') center 38% / cover no-repeat;
+        box-shadow: 0 20px 46px rgba(0, 0, 0, 0.26);
         overflow: hidden;
     }
 
@@ -449,9 +493,9 @@
         content: "";
         position: absolute;
         inset: auto 0 0 0;
-        height: 3px;
-        background: linear-gradient(90deg, #25d7e8, #d4af37, #96de92, transparent);
-        opacity: 0.9;
+        width: 34%;
+        height: 2px;
+        background: #c89b3c;
     }
 
     .ai-hero > * {
@@ -462,7 +506,7 @@
     .ai-hero h2,
     .summary-card h3 {
         margin: 0;
-        color: #25d7e8;
+        color: #fff4cf;
         font-weight: 900;
         letter-spacing: 0;
     }
@@ -477,10 +521,9 @@
     }
 
     .section-kicker {
-        color: #25d7e8;
+        color: #e6c66d;
         font-size: 0.74rem;
         font-weight: 900;
-        text-transform: uppercase;
     }
 
     .ai-status,
@@ -501,16 +544,16 @@
         min-height: 26px;
         padding: 4px 9px;
         border-radius: 4px;
-        color: #d9f9ff;
-        background: rgba(37, 215, 232, 0.12);
-        border: 1px solid rgba(37, 215, 232, 0.35);
+        color: #dce8e6;
+        background: rgba(41, 184, 176, 0.08);
+        border: 1px solid rgba(41, 184, 176, 0.3);
         font-size: 0.78rem;
         font-weight: 850;
     }
 
     .ai-shell {
         display: grid;
-        grid-template-columns: minmax(360px, 480px) minmax(0, 1fr);
+        grid-template-columns: minmax(360px, 0.78fr) minmax(0, 1.22fr);
         gap: 24px;
         align-items: start;
     }
@@ -519,19 +562,17 @@
     .ai-empty,
     .summary-card,
     .result-section {
-        background:
-            linear-gradient(160deg, rgba(9, 24, 34, 0.95), rgba(4, 12, 19, 0.8)),
-            rgba(4, 12, 19, 0.78);
-        border: 1px solid rgba(37, 215, 232, 0.24);
-        border-radius: 8px;
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+        background: rgba(8, 17, 23, 0.94);
+        border: 1px solid rgba(144, 171, 181, 0.24);
+        border-radius: 6px;
+        box-shadow: none;
     }
 
     .ai-form-panel {
         padding: 18px;
         position: sticky;
         top: 88px;
-        box-shadow: inset 0 0 0 1px rgba(255, 211, 101, 0.04), 0 22px 44px rgba(0, 0, 0, 0.24);
+        box-shadow: 0 18px 38px rgba(0, 0, 0, 0.2);
     }
 
     .fixed-mode {
@@ -541,9 +582,9 @@
         gap: 12px;
         margin-bottom: 14px;
         padding: 10px 12px;
-        color: #dffbff;
-        background: rgba(37, 215, 232, 0.1);
-        border: 1px solid rgba(37, 215, 232, 0.34);
+        color: #fff4cf;
+        background: rgba(200, 155, 60, 0.08);
+        border: 1px solid rgba(200, 155, 60, 0.32);
         border-radius: 6px;
     }
 
@@ -551,7 +592,7 @@
     .field-block > span,
     .field-title > span,
     .board-title span {
-        color: #25d7e8;
+        color: #61d7cf;
         font-size: 0.84rem;
         font-weight: 900;
     }
@@ -593,9 +634,9 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: #06121a;
-        background: #25d7e8;
-        border: 1px solid rgba(37, 215, 232, 0.8);
+        color: #071013;
+        background: #c89b3c;
+        border: 1px solid #c89b3c;
         border-radius: 6px;
         font-weight: 900;
         text-decoration: none;
@@ -612,7 +653,8 @@
     .mini-picker:hover {
         color: #06121a;
         transform: translateY(-1px);
-        box-shadow: 0 10px 22px rgba(37, 215, 232, 0.25);
+        background: #e6c66d;
+        box-shadow: 0 10px 22px rgba(200, 155, 60, 0.2);
     }
 
     .owned-augment-board,

@@ -53,6 +53,19 @@ public sealed class FrontendStructureTests
         Assert.DoesNotContain("flow-card-4", home, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void AiRecommendation_PresentsFourInputStagesAndDecisionPanel()
+    {
+        var page = Read("Proposal", "Views", "AiRecommendation", "Index.cshtml");
+
+        Assert.Contains("recommendation-stage", page, StringComparison.Ordinal);
+        Assert.Contains("鎖定英雄", page, StringComparison.Ordinal);
+        Assert.Contains("選擇對局階段", page, StringComparison.Ordinal);
+        Assert.Contains("帶入本輪三個海克斯", page, StringComparison.Ordinal);
+        Assert.Contains("補充對局狀況", page, StringComparison.Ordinal);
+        Assert.Contains("decision-preview", page, StringComparison.Ordinal);
+    }
+
     private static string Read(params string[] segments) =>
         File.ReadAllText(Path.Combine([RepositoryRoot, .. segments]));
 
