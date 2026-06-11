@@ -1,3 +1,4 @@
+/* Shared game UI tokens and responsive shell. */
 :root {
   --color-ink-950: #05090c;
   --color-ink-900: #081117;
@@ -187,7 +188,7 @@ img {
 }
 
 .page-ready .main-content {
-  animation: page-reveal 150ms ease-out both;
+  animation: page-reveal 150ms ease-out;
 }
 
 @keyframes page-reveal {

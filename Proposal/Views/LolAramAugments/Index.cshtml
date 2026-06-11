@@ -399,7 +399,7 @@
                         <input type="hidden" name="stage" value="@pickStage" />
                         <input type="hidden" name="slot" value="@pickSlot" />
                     }
-                    <input type="text" name="searchString" value="@currentFilter" class="form-control text-bg-dark border-secondary" placeholder="搜尋名稱、代碼、套裝或屬性" />
+                    <input type="text" name="searchString" value="@currentFilter" class="form-control text-bg-dark border-secondary" placeholder="搜尋名稱、代碼、套裝或屬性" aria-label="搜尋海克斯" />
                     @if (!string.IsNullOrWhiteSpace(selectedTag))
                     {
                         <input type="hidden" name="tag" value="@selectedTag" />
@@ -486,14 +486,14 @@
     {
         <div class="alert alert-success alert-dismissible fade show text-bg-success border-0" role="alert">
             <i class="bi bi-check-circle-fill me-2"></i>@TempData["Success"]
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="關閉通知"></button>
         </div>
     }
     @if (TempData["Error"] != null)
     {
         <div class="alert alert-danger alert-dismissible fade show text-bg-danger border-0" role="alert">
             <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["Error"]
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="關閉錯誤通知"></button>
         </div>
     }
 
@@ -518,7 +518,6 @@
     <section id="augmentResults">
         <div class="d-flex align-items-center justify-content-between mb-3 gap-3">
             <div>
-                <div class="section-kicker">@Model.Count 筆資料</div>
                 <h5 class="m-0">海克斯列表</h5>
             </div>
             @if (!string.IsNullOrWhiteSpace(currentFilter))
@@ -692,7 +691,7 @@
                         <div class="section-kicker" id="setEffectMax">MAX</div>
                         <h5 class="modal-title" id="setEffectTitle">套裝效果</h5>
                     </div>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="關閉套裝效果"></button>
                 </div>
                 <div class="modal-body">
                     <p id="setEffectText" class="set-effect-text mb-0"></p>

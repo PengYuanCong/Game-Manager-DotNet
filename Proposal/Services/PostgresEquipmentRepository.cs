@@ -34,26 +34,7 @@ public sealed class PostgresEquipmentRepository : IEquipmentRepository
         await using var connection = _connectionFactory.Create();
         await connection.OpenAsync(cancellationToken);
 
-        var sql = new StringBuilder($"""
-            select {EquipmentColumns}
-            from public.equipments
-            where owner_username = @username
-            """);
-
-        if (!string.IsNullOrWhiteSpace(searchString))
-        {
-            sql.AppendLine("and name ilike @search");
-        }
-
-        var statCondition = BuildStatFilterCondition(statFilter);
-        if (!string.IsNullOrWhiteSpace(statCondition))
-        {
-            sql.AppendLine($"and ({statCondition})");
-        }
-
-        sql.AppendLine("order by price asc, name asc;");
-
-        await using var command = new NpgsqlCommand(sql.ToString(), connection);
+        await using var command = new NpgsqlCommand(BuildListSql(searchString, statFilter), connection);
         AddUsername(command, username);
         if (!string.IsNullOrWhiteSpace(searchString))
         {
@@ -67,6 +48,30 @@ public sealed class PostgresEquipmentRepository : IEquipmentRepository
         }
 
         return equipments;
+    }
+
+    private static string BuildListSql(string? searchString, string? statFilter)
+    {
+        var sql = new StringBuilder($"""
+            select {EquipmentColumns}
+            from public.equipments
+            where owner_username = @username
+            """);
+        sql.AppendLine();
+
+        if (!string.IsNullOrWhiteSpace(searchString))
+        {
+            sql.AppendLine("and name ilike @search");
+        }
+
+        var statCondition = BuildStatFilterCondition(statFilter);
+        if (!string.IsNullOrWhiteSpace(statCondition))
+        {
+            sql.AppendLine($"and ({statCondition})");
+        }
+
+        sql.AppendLine("order by price asc, name asc;");
+        return sql.ToString();
     }
 
     public async Task<Equipment?> GetByIdAsync(

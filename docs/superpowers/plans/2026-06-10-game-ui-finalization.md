@@ -566,7 +566,7 @@ Keep the existing property filters and toggle behavior, but constrain both colla
 
 The exact selector must match the existing `#augmentTagDrawer` JavaScript contract; adapt by adding the class rather than changing its id.
 
-- [ ] **Step 6: Preserve equipment selection across filters**
+- [x] **Step 6: Preserve equipment selection across filters**
 
 Do not change the existing local/session storage implementation. Add shared selected-state styling based on the current checkbox/selection classes and verify the persisted selected count still updates after a filtered navigation.
 
@@ -664,7 +664,7 @@ git commit -m "feat: polish secondary and account pages"
 - Modify only files proven necessary by browser findings.
 - Update: `docs/superpowers/plans/2026-06-10-game-ui-finalization.md`
 
-- [ ] **Step 1: Run the automated verification gate**
+- [x] **Step 1: Run the automated verification gate**
 
 Run:
 
@@ -676,11 +676,11 @@ powershell -ExecutionPolicy Bypass -File .\Tools\RunLocalSmoke.ps1
 
 Expected: test suite, Release build and local HTTP smoke all pass. If the smoke wrapper reports an external database/provider blocker, retain the exact report and still verify public/login pages.
 
-- [ ] **Step 2: Start the app with the repository-safe wrapper**
+- [x] **Step 2: Start the app with the repository-safe wrapper**
 
 Use the existing safe launch approach that removes the duplicate `PATH`/`Path` environment entry and starts the app hidden on an unused localhost port. Confirm the health endpoint or homepage returns HTTP 200 before browser inspection.
 
-- [ ] **Step 3: Verify desktop pages in the in-app browser**
+- [x] **Step 3: Verify desktop pages in the in-app browser**
 
 Inspect at 1280×900:
 
@@ -697,7 +697,7 @@ Inspect at 1280×900:
 
 For authenticated routes, use the existing signed-in browser session only; never place credentials in scripts or source.
 
-- [ ] **Step 4: Verify responsive pages**
+- [x] **Step 4: Verify responsive pages**
 
 Inspect the homepage, AI recommendation, one data library and login at:
 
@@ -718,7 +718,7 @@ Check:
 
 Expected: `horizontalOverflow` is `false`; nav content does not overlap; mobile controls are at least 44px high.
 
-- [ ] **Step 5: Check visual and interaction states**
+- [x] **Step 5: Check visual and interaction states**
 
 Verify:
 
@@ -731,11 +731,11 @@ Verify:
 - admin actions remain hidden from non-admin users;
 - AI form draft, picker return and equipment selection still work.
 
-- [ ] **Step 6: Fix only evidence-backed defects**
+- [x] **Step 6: Fix only evidence-backed defects**
 
 For every defect, record the page, viewport, selector and screenshot, then make the smallest CSS/markup change that resolves it. Re-run the focused page and the full automated gate after the final fix.
 
-- [ ] **Step 7: Mark the plan complete and commit**
+- [x] **Step 7: Mark the plan complete and commit**
 
 Update every completed checkbox in this plan, then run:
 

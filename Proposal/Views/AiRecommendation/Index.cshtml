@@ -93,9 +93,9 @@
                             </a>
                         </div>
                         <div class="field-block hero-picker-block">
-                            <div class="field-title">
+                            <label class="field-title" for="championInput">
                                 <span>英雄 <em>必填</em></span>
-                            </div>
+                            </label>
                             <input asp-for="Input.CoreChampion" id="championInput" class="form-control text-bg-dark border-secondary" placeholder="例如：瑟菈紛、布蘭德" autocomplete="off" />
                             <span asp-validation-for="Input.CoreChampion" class="text-danger small"></span>
                         </div>
@@ -154,6 +154,7 @@
                                         <input type="text"
                                                class="form-control text-bg-dark border-secondary owned-augment-input"
                                                data-owned-stage="@owned.Key"
+                                               aria-label="@owned.Label"
                                                placeholder="已經拿到的海克斯"
                                                autocomplete="off" />
                                         <a class="mini-picker"
@@ -163,8 +164,9 @@
                                            asp-route-stage="@($"selected_{owned.Key}")"
                                            asp-route-slot="0"
                                            data-save-draft
+                                           aria-label="挑選@owned.Label"
                                            title="到海克斯知識庫挑選已選海克斯">
-                                            <i class="bi bi-plus-lg"></i>
+                                            <i class="bi bi-plus-lg" aria-hidden="true"></i>
                                         </a>
                                     </div>
                                 }
@@ -205,6 +207,7 @@
                                                        class="form-control text-bg-dark border-secondary augment-choice-input"
                                                        data-stage="@stage.Key"
                                                        data-slot="@slot"
+                                                       aria-label="@stage.Label 選項 @(slot + 1)"
                                                        placeholder="選項 @(slot + 1)"
                                                        autocomplete="off" />
                                                 <button type="button"
@@ -222,8 +225,9 @@
                                                    asp-route-stage="@stage.Key"
                                                    asp-route-slot="@slot"
                                                    data-save-draft
+                                                   aria-label="挑選@stage.Label選項 @(slot + 1)"
                                                    title="到海克斯知識庫挑選">
-                                                    <i class="bi bi-plus-lg"></i>
+                                                    <i class="bi bi-plus-lg" aria-hidden="true"></i>
                                                 </a>
                                             </div>
                                         }

@@ -110,6 +110,7 @@ app.Use(async (context, next) =>
     context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
     await next();
 });
+app.UseStaticFiles();
 app.UseRouting();
 
 app.UseAuthentication();

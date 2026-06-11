@@ -1,3 +1,4 @@
+// Progressive enhancements only; the page remains usable if scripts are unavailable.
 document.documentElement.classList.add("js");
 
 document.addEventListener("DOMContentLoaded", () => {

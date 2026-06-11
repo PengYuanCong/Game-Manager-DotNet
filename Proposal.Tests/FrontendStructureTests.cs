@@ -27,6 +27,18 @@ public sealed class FrontendStructureTests
         Assert.Contains(".game-toolbar", css, StringComparison.Ordinal);
         Assert.Contains(".game-card", css, StringComparison.Ordinal);
         Assert.Contains("@media (prefers-reduced-motion: reduce)", css, StringComparison.Ordinal);
+        Assert.DoesNotContain("animation: page-reveal 150ms ease-out both", css, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Startup_ServesPhysicalStaticFilesBeforeMappedAssets()
+    {
+        var startup = Read("Proposal", "Program.cs");
+        var staticFilesIndex = startup.IndexOf("app.UseStaticFiles();", StringComparison.Ordinal);
+        var mappedAssetsIndex = startup.IndexOf("app.MapStaticAssets();", StringComparison.Ordinal);
+
+        Assert.True(staticFilesIndex >= 0, "The app should serve physical CSS and JavaScript files.");
+        Assert.True(mappedAssetsIndex > staticFilesIndex, "Physical static files should run before mapped assets.");
     }
 
     [Fact]
@@ -64,6 +76,8 @@ public sealed class FrontendStructureTests
         Assert.Contains("帶入本輪三個海克斯", page, StringComparison.Ordinal);
         Assert.Contains("補充對局狀況", page, StringComparison.Ordinal);
         Assert.Contains("decision-preview", page, StringComparison.Ordinal);
+        Assert.Contains("for=\"championInput\"", page, StringComparison.Ordinal);
+        Assert.Contains("aria-label=\"@stage.Label 選項 @(slot + 1)\"", page, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -78,6 +92,15 @@ public sealed class FrontendStructureTests
         Assert.Contains("game-toolbar", page, StringComparison.Ordinal);
         Assert.Contains("game-card", page, StringComparison.Ordinal);
         Assert.Contains(expectedTitle, page, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AugmentLibrary_AvoidsPlayerFacingDatasetStatistics()
+    {
+        var page = Read("Proposal", "Views", "LolAramAugments", "Index.cshtml");
+
+        Assert.DoesNotContain("@Model.Count 筆資料", page, StringComparison.Ordinal);
+        Assert.Contains("aria-label=\"搜尋海克斯\"", page, StringComparison.Ordinal);
     }
 
     [Fact]

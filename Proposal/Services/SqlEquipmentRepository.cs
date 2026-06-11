@@ -33,26 +33,7 @@ public sealed class SqlEquipmentRepository : IEquipmentRepository
         await connection.OpenAsync(cancellationToken);
         await EnsureEquipmentSchemaAsync(connection, cancellationToken);
 
-        var sql = new StringBuilder($"""
-            SELECT {EquipmentColumns}
-            FROM dbo.Equipments
-            WHERE Username = @User
-            """);
-
-        if (!string.IsNullOrWhiteSpace(searchString))
-        {
-            sql.AppendLine("AND Name LIKE @Search");
-        }
-
-        var statCondition = BuildStatFilterCondition(statFilter);
-        if (!string.IsNullOrWhiteSpace(statCondition))
-        {
-            sql.AppendLine($"AND ({statCondition})");
-        }
-
-        sql.AppendLine("ORDER BY Price ASC, Name ASC;");
-
-        await using var command = new SqlCommand(sql.ToString(), connection);
+        await using var command = new SqlCommand(BuildListSql(searchString, statFilter), connection);
         AddUsername(command, username);
         if (!string.IsNullOrWhiteSpace(searchString))
         {
@@ -66,6 +47,30 @@ public sealed class SqlEquipmentRepository : IEquipmentRepository
         }
 
         return equipments;
+    }
+
+    private static string BuildListSql(string? searchString, string? statFilter)
+    {
+        var sql = new StringBuilder($"""
+            SELECT {EquipmentColumns}
+            FROM dbo.Equipments
+            WHERE Username = @User
+            """);
+        sql.AppendLine();
+
+        if (!string.IsNullOrWhiteSpace(searchString))
+        {
+            sql.AppendLine("AND Name LIKE @Search");
+        }
+
+        var statCondition = BuildStatFilterCondition(statFilter);
+        if (!string.IsNullOrWhiteSpace(statCondition))
+        {
+            sql.AppendLine($"AND ({statCondition})");
+        }
+
+        sql.AppendLine("ORDER BY Price ASC, Name ASC;");
+        return sql.ToString();
     }
 
     public async Task<Equipment?> GetByIdAsync(
