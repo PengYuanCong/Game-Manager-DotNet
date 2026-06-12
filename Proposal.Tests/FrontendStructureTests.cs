@@ -117,9 +117,9 @@ public sealed class FrontendStructureTests
         Assert.Contains("game-page-header", highlights, StringComparison.Ordinal);
         Assert.Contains("game-page-header", profile, StringComparison.Ordinal);
         Assert.Contains("~/css/site.css", login, StringComparison.Ordinal);
-        Assert.Contains("/images/poro-guide.png", login, StringComparison.Ordinal);
+        Assert.DoesNotContain("/images/poro-guide.png", login, StringComparison.Ordinal);
         Assert.Contains("~/css/site.css", register, StringComparison.Ordinal);
-        Assert.Contains("/images/poro-guide.png", register, StringComparison.Ordinal);
+        Assert.DoesNotContain("/images/poro-guide.png", register, StringComparison.Ordinal);
         Assert.Contains("error-page", notFound, StringComparison.Ordinal);
         Assert.DoesNotContain("infinite", notFound, StringComparison.OrdinalIgnoreCase);
     }
